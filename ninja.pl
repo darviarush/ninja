@@ -14,9 +14,12 @@ my $root = MainWindow->new(-title => "Ninja");
 my $menu = $root->Menu;
 $root->configure(-menu => $menu);
 
-$menu->command(-label => 'Открыть', -command => sub {});
-$menu->separator;
-$menu->command(-label => 'Завершить', -command => sub {exit});
+my $file_menu = $menu->Menu();
+$menu->cascade(-label => 'Файл', -menu => $file_menu);
+
+$file_menu->command(-label => 'Открыть', -command => sub {});
+$file_menu->separator;
+$file_menu->command(-label => 'Завершить', -command => sub {exit});
 
 my $main = $root->Panedwindow(qw/-orient vertical/);
 my $sections = $root->Panedwindow(qw/-orient horizontal/);
@@ -46,6 +49,7 @@ $main->pack(-fill=>'both', -expand=>1);
 
 my $f = $root->Frame;
 my $position = $f->Label(-text => "Line 1, Column 1");
-$f->pack;
+$position->pack(-side=>'left');
+$f->pack(-side => 'bottom', -fill=>'both');
 
 MainLoop;
