@@ -4,7 +4,7 @@ use common::sense;
 use Tk;
 
 
-# my $root = MainWindow->new(-title => "Ninja");
+my $root = MainWindow->new(-title => "Ninja");
 # $root->Label(-text => 'Hello, world!')->pack;
 # $root->Button(
 #     -text    => 'Quit',
@@ -12,8 +12,11 @@ use Tk;
 # )->pack;
 
 my $menu = $root->Menu;
-$root->config(-menu => $menu);
+$root->configure(-menu => $menu);
 
+$menu->command(-label => 'Открыть', -command => sub {});
+$menu->separator;
+$menu->command(-label => 'Завершить', -command => sub {exit});
 
 my $main = $root->Panedwindow(qw/-orient vertical/);
 my $sections = $root->Panedwindow(qw/-orient horizontal/);
@@ -41,7 +44,8 @@ $sections->pack(-side => 'top');
 $main->add($sections, $text);
 $main->pack(-fill=>'both', -expand=>1);
 
-my $toolbar = $root->Frame;
-$toolbar->pack;
+my $f = $root->Frame;
+my $position = $f->Label(-text => "Line 1, Column 1");
+$f->pack;
 
 MainLoop;
