@@ -4,6 +4,9 @@ use common::sense;
 use Tk;
 use DDP {class=>{expand=>10_000}};
 
+use lib 'lib';
+use Jinnee;
+
 # Инициализация конфига
 my $config;
 use JSON::XS;
@@ -11,6 +14,8 @@ my $json = JSON::XS->new->canonical->allow_nonref->pretty(1);
 my $config_path = "$ENV{HOME}/.config/ninja-lang-editor.json";
 load_config();
 
+
+my $jinnee = Jinnee->new;
 
 # Окно
 my $root = MainWindow->new(-title => "Ninja");
@@ -33,24 +38,36 @@ my @frames;
 
 sub sec {
 	my $f1 = $sections->Frame();
+	
 	my $list = $f1->Listbox;
 	$list->pack(-side => 'top', -fill => 'both', -expand => 1);
+	
 	my $entry = $f1->Entry;
 	$entry->pack(-side => 'bottom', -fill => 'both');
-    my $i = @{$sections->panes};
+    
+	my $i = @{$sections->panes};
+	
+	$entry->insert('end', $config->{sections}{filters}[$i]);
+	
     my $width = $config->{sections}{widths}[$i];
 	$sections->add($f1, $width? (-width => $width): ());
-    push @frames, $f1;
+    
+	push @frames, $f1;
 	return $list, $entry;
 }
 
-my ($rank, $rank_filter) = sec();
+my ($packages, $package_filter) = sec();
 my ($classes, $class_filter) = sec();
 my ($categories, $category_filter) = sec();
 my ($methods, $method_filter) = sec();
 
-#$sections->pack(-side => 'top');
-#$text->pack(-side => 'top');#,-fill=>'both', -expand=>1);
+
+$package_filter->bind("<KeyRelease>" => \&evt_package_list);
+evt_package_list();
+sub evt_package_list {
+	$packages->delete(0, "end");
+	$packages->insert(0, $jinnee->package_list($package_filter->get));
+}
 
 $main->add($sections);
 $main->add($text);
@@ -94,21 +111,12 @@ sub save_config {
     $config->{sections}->{height} = $sections->height;
     pop @frames;
     $config->{sections}->{widths} = [map { $_->width } @frames];
+	$config->{sections}->{filters} = [$package_filter->get, $class_filter->get, $category_filter->get, $method_filter->get];
     
 
     open my $f, ">", $config_path or do { warn "$config_path: $!"; return };
     print $f $json->encode($config);
     close $f;
 }
-
-my $project_path = "./.ninja.pl";
-sub load_project {
-	if(-f $project_path) {
-        require $project_path;
-        
-    }
-}
-
-
 
 MainLoop;
