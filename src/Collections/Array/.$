@@ -1,0 +1,4 @@
+Collection subclass Array
+
+size Int:32
+
