@@ -37,8 +37,6 @@ sub save {
         undef $!;
     }
 	
-	::p $self;
-	
 	open my $f, ">", $config_path or do { warn "$config_path: $!"; return };
     print $f $json->encode({%$self});
     close $f;

@@ -7,6 +7,7 @@ use Tk;
 
 use Ninja::Config;
 use Ninja::SelectorBoxes;
+use Ninja::MethodArea;
 
 sub new {
 	my $cls = shift;
@@ -16,20 +17,11 @@ sub new {
 	}, ref $cls || $cls;
 }
 
-sub config {
-	my ($self) = @_;
-	$self->{config}
-}
-
-sub root {
-	my ($self) = @_;
-	$self->{root}
-}
-
-sub selectors {
-	my ($self) = @_;
-	$self->{selectors}
-}
+sub config { shift()->{config} }
+sub root { shift()->{root} }
+sub selectors { shift()->{selectors} }
+sub jinnee { shift()->{jinnee} }
+sub area { shift()->{area} }
 
 sub evt_select_all {
 	my ($entry) = @_;
@@ -41,8 +33,9 @@ sub sec {
 	my ($self) = @_;
 	my $sections = $self->{sections};
 	my $f1 = $sections->Frame();
-	
-	my $list = $f1->Listbox;
+		
+	my $list = $f1->Scrolled("Listbox", -scrollbars=>"oe");
+	$list->Subwidget("yscrollbar")->configure(-width=>10);
 	$list->pack(-side => 'top', -fill => 'both', -expand => 1);
 	
 	my $entry = $f1->Entry;
@@ -54,6 +47,7 @@ sub sec {
 	$entry->bind('<Control-a>', \&evt_select_all);
 	
     my $width = $self->config->{sections}{widths}[$i];
+	
 	$sections->add($f1, $width? (-width => $width): ());
     
 	return $list, $entry, $f1;
@@ -79,10 +73,12 @@ sub construct {
 
 	my $main = $root->Panedwindow(-orient => 'vertical');
 	$self->{sections} = my $sections = $main->Panedwindow(-orient => 'horizontal');
-	my $text = $main->Text;
+	my $text = $main->Scrolled("TextUndo", -scrollbars=>"osoe");
+	$text->Subwidget("yscrollbar")->configure(-width=>10);
+	$text->Subwidget("xscrollbar")->configure(-width=>10);
 	my @frames;
 
-	$self->{selectors} = my $boxes = Ninja::SelectorBoxes->new;
+	$self->{selectors} = my $boxes = Ninja::SelectorBoxes->new(main => $self);
 
 	($boxes->{packages}, $boxes->{package_filter}, $frames[0]) = $self->sec();
 	($boxes->{classes}, $boxes->{class_filter}, $frames[1]) = $self->sec();
@@ -95,9 +91,11 @@ sub construct {
 	$main->add($text);
 	$main->pack(-fill=>'both', -expand=>1);
 
+	$self->{area} = Ninja::MethodArea->new(area => $text, main => $self);
+
 	# Тулбар
 	my $f = $root->Frame();
-	my $position = $f->Label(-text => "Line 1, Column 1");
+	$self->{position} = my $position = $f->Label(-text => "Line 1, Column 1");
 	$position->pack(-side=>'left');
 	$f->pack(-side => 'bottom');
 
@@ -107,6 +105,8 @@ sub construct {
 	# *** Конфигурация
 	$root->geometry($self->config->{root}->{geometry}) if $self->config->{root}->{geometry};
 	$sections->configure(-height=>$self->config->{sections}->{height}) if $self->config->{sections}->{height};
+
+	$boxes->construct;
 
 	MainLoop;
 }
@@ -119,6 +119,11 @@ sub DESTROY {
 
 sub close {
 	my ($self) = @_;
+	
+	return $self if $self->{closed};
+	$self->{closed} = 1;
+	
+	
 	my $config = $self->config;
 	my $sections = $self->{sections};
 

@@ -12,4 +12,4 @@ use Ninja::MainWindow;
 
 use Jinnee;
 
-Ninja::MainWindow->new(lang => Jinnee->new)->construct;
+Ninja::MainWindow->new(jinnee => Jinnee->new)->construct;

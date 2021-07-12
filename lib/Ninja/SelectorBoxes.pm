@@ -4,103 +4,84 @@ package Ninja::SelectorBoxes;
 use common::sense;
 
 sub new {
-	my ($cls) = @_;
-	bless {		
-		@_,
-	}, ref $cls || $cls;
+	my $cls = shift;
+	my $self = bless {@_}, ref $cls || $cls;
+	$self
 }
 
-sub package_filter {
-	my ($self) = @_;
-	$self->{package_filter}
+sub package_filter { shift()->{package_filter} }
+sub class_filter { shift()->{class_filter} }
+sub category_filter { shift()->{category_filter} }
+sub method_filter { shift()->{method_filter} }
+sub packages { shift()->{packages} }
+sub classes { shift()->{classes} }
+sub categories { shift()->{categories} }
+sub methods { shift()->{methods} }
+sub main { shift()->{main} }
+
+package Tk::Listbox {
+	# расширяем листбокс
+	sub sel {
+		my ($self) = @_;
+		
+		$self->{HRAN}[ $self->curselection->[0] ]
+	}
+
+	sub list {
+		my ($self) = @_;
+		$self->{HRAN}
+	}
+
+	sub replace {
+		my $self = shift;	
+		$self->delete(0, "end");
+		$self->{HRAN} = [@_];
+		$self->insert(0, map { $_->{name} } @_);
+	}
 }
 
-sub class_filter {
-	my ($self) = @_;
-	$self->{class_filter}
-}
-
-sub category_filter {
-	my ($self) = @_;
-	$self->{category_filter}
-}
-
-sub method_filter {
-	my ($self) = @_;
-	$self->{method_filter}
-}
-
-sub packages {
-	my ($self) = @_;
-	$self->{packages}
-}
-
-sub classes {
-	my ($self) = @_;
-	$self->{classes}
-}
-
-sub categories {
-	my ($self) = @_;
-	$self->{categories}
-}
-
-sub methods {
-	my ($self) = @_;
-	$self->{methods}
-}
-
-
-sub listbox_sel {
-	my ($box) = @_;
-	$box->get($box->curselection)
-}
-
-sub listbox_list {
-	my ($box) = @_;
-	[ map { $box->get($_) } 0..$box->size-1 ]
-}
-
-sub listbox_replace {
-	my $box = shift;	
-	$box->delete(0, "end");
-	$box->insert(0, @_);
-}
-
-sub bind {
+sub construct {
 	my ($self) = @_;
 	
-	# $self->package_filter->bind("<KeyRelease>" => \&evt_package_list);
-	# evt_package_list();
-	# sub evt_package_list {
-		# listbox_replace($packages, $jinnee->package_list($package_filter->get));
-	# }
+	my $jinnee = $self->main->jinnee;
 
-	# $self->class_filter->bind("<KeyRelease>" => \&evt_class_list);
-	# $self->packages->bind("<<ListboxSelect>>" => \&evt_class_list);
-	# evt_class_list();
-	# sub evt_class_list {
-		# listbox_replace($classes, $jinnee->class_list($class_filter->get, listbox_sel($packages)));
-	# }
+	my $package_filter = $self->{package_filter};
+	my $class_filter = $self->{class_filter};
+	my $category_filter = $self->{category_filter};
+	my $method_filter = $self->{method_filter};
+	my $packages = $self->{packages};
+	my $classes = $self->{classes};
+	my $categories = $self->{categories};
+	my $methods = $self->{methods};
+	
+	
+	$package_filter->bind("<KeyRelease>" => (my $evt_package_list = sub {
+		$packages->replace($jinnee->package_list($self->package_filter->get));
+	}));
+	$evt_package_list->();
+	
 
-	# $self->category_filter->bind("<KeyRelease>" => \&evt_category_list);
-	# $self->classes->bind("<<ListboxSelect>>" => \&evt_category_list);
-	# evt_category_list();
-	# sub evt_category_list {
-		# listbox_replace($categories, $jinnee->category_list($category_filter->get, listbox_sel($packages), listbox_sel($classes)));
-	# }
+	$class_filter->bind("<KeyRelease>" => (my $evt_class_list = sub {
+		$classes->replace($jinnee->class_list($class_filter->get, $packages->sel));
+	}));
+	$self->packages->bind("<<ListboxSelect>>" => $evt_class_list);
 
-	# $self->method_filter->bind("<KeyRelease>" => \&evt_method_list);
-	# $self->categories->bind("<<ListboxSelect>>" => \&evt_method_list);
-	# evt_method_list();
-	# sub evt_method_list {
-		# listbox_replace($methods, $jinnee->method_list($method_filter->get, listbox_sel($packages), listbox_sel($classes), listbox_sel($categories)));
-	# }
 
-	# $self->methods->bind("<<ListboxSelect>>" => \&evt_method_show);
-	# sub evt_method_show {
-		
-	# }
+	$category_filter->bind("<KeyRelease>" => (my $evt_category_list = sub {
+		$categories->replace($jinnee->category_list($category_filter->get, $classes->sel));
+	}));
+	$self->classes->bind("<<ListboxSelect>>" => $evt_category_list);
+
+
+	$method_filter->bind("<KeyRelease>" => (my $evt_method_list = sub {
+		$methods->replace( $jinnee->method_list($method_filter->get, $categories->sel) );
+	}));
+	$self->categories->bind("<<ListboxSelect>>" => $evt_method_list);
+
+
+	$methods->bind("<<ListboxSelect>>" => (my $evt_method_show = sub {
+		$self->main->area->to_method($methods->sel);
+	}));
 
 	
 	$self
