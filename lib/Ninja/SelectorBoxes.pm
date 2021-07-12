@@ -62,13 +62,14 @@ sub construct {
 	
 
 	$class_filter->bind("<KeyRelease>" => (my $evt_class_list = sub {
-		$classes->replace($jinnee->class_list($class_filter->get, $packages->sel));
+		$classes->replace($jinnee->class_list($class_filter->get, $packages->sel));		
 	}));
 	$self->packages->bind("<<ListboxSelect>>" => $evt_class_list);
 
 
 	$category_filter->bind("<KeyRelease>" => (my $evt_category_list = sub {
 		$categories->replace($jinnee->category_list($category_filter->get, $classes->sel));
+		
 	}));
 	$self->classes->bind("<<ListboxSelect>>" => $evt_category_list);
 

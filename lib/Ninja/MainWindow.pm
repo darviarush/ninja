@@ -4,6 +4,7 @@ package Ninja::MainWindow;
 use common::sense;
 
 use Tk;
+use Tk::TextUndo;
 
 use Ninja::Config;
 use Ninja::SelectorBoxes;
@@ -34,7 +35,9 @@ sub sec {
 	my $sections = $self->{sections};
 	my $f1 = $sections->Frame();
 		
-	my $list = $f1->Scrolled("Listbox", -scrollbars=>"oe");
+	my $list = $f1->Scrolled("Listbox", -scrollbars=>"oe", 
+                        
+	);
 	$list->Subwidget("yscrollbar")->configure(-width=>10);
 	$list->pack(-side => 'top', -fill => 'both', -expand => 1);
 	
