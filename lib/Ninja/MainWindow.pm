@@ -23,6 +23,7 @@ sub root { shift()->{root} }
 sub selectors { shift()->{selectors} }
 sub jinnee { shift()->{jinnee} }
 sub area { shift()->{area} }
+sub position { shift()->{position} }
 
 sub evt_select_all {
 	my ($entry) = @_;
@@ -36,7 +37,7 @@ sub sec {
 	my $f1 = $sections->Frame();
 		
 	my $list = $f1->Scrolled("Listbox", -scrollbars=>"oe", 
-                        
+		-exportselection => 0,
 	);
 	$list->Subwidget("yscrollbar")->configure(-width=>10);
 	$list->pack(-side => 'top', -fill => 'both', -expand => 1);
@@ -76,7 +77,9 @@ sub construct {
 
 	my $main = $root->Panedwindow(-orient => 'vertical');
 	$self->{sections} = my $sections = $main->Panedwindow(-orient => 'horizontal');
-	my $text = $main->Scrolled("TextUndo", -scrollbars=>"osoe");
+	my $text = $main->Scrolled("TextUndo", -scrollbars=>"osoe",
+		-wrap => "word",
+	);
 	$text->Subwidget("yscrollbar")->configure(-width=>10);
 	$text->Subwidget("xscrollbar")->configure(-width=>10);
 	my @frames;
@@ -94,11 +97,11 @@ sub construct {
 	$main->add($text);
 	$main->pack(-fill=>'both', -expand=>1);
 
-	$self->{area} = Ninja::MethodArea->new(area => $text, main => $self);
+	$self->{area} = Ninja::MethodArea->new(area => $text, main => $self)->construct;
 
 	# Тулбар
 	my $f = $root->Frame();
-	$self->{position} = my $position = $f->Label(-text => "Line 1, Column 1");
+	$self->{position} = my $position = $f->Label(-text => "Line 1, Column 1", -justify => 'left');
 	$position->pack(-side=>'left');
 	$f->pack(-side => 'bottom');
 

@@ -3,9 +3,13 @@ package Ninja::SelectorBoxes;
 
 use common::sense;
 
+my $SEL;
+
 sub new {
+	return $SEL if $SEL;
+	
 	my $cls = shift;
-	my $self = bless {@_}, ref $cls || $cls;
+	$SEL = my $self = bless {@_}, ref $cls || $cls;
 	$self
 }
 
@@ -33,10 +37,16 @@ package Tk::Listbox {
 	}
 
 	sub replace {
-		my $self = shift;	
+		my $self = shift;		
 		$self->delete(0, "end");
 		$self->{HRAN} = [@_];
 		$self->insert(0, map { $_->{name} } @_);
+	}
+	
+	sub select_element {
+		my ($self, $index) = @_;
+		$self->activate($index);
+		$self->selectionSet($index);
 	}
 }
 
@@ -56,26 +66,33 @@ sub construct {
 	
 	
 	$package_filter->bind("<KeyRelease>" => (my $evt_package_list = sub {
-		$packages->replace($jinnee->package_list($self->package_filter->get));
+		$packages->replace($jinnee->package_list($package_filter->get));
 	}));
 	$evt_package_list->();
-	
 
 	$class_filter->bind("<KeyRelease>" => (my $evt_class_list = sub {
-		$classes->replace($jinnee->class_list($class_filter->get, $packages->sel));		
+		$classes->replace($jinnee->class_list($class_filter->get, $packages->sel));
+		$categories->replace;
+		$methods->replace;
+		$self->main->area->disable;
 	}));
-	$self->packages->bind("<<ListboxSelect>>" => $evt_class_list);
+	$packages->bind("<<ListboxSelect>>" => $evt_class_list);
+	
+	$packages->select_element(0);
+	$evt_class_list->();
 
 
 	$category_filter->bind("<KeyRelease>" => (my $evt_category_list = sub {
 		$categories->replace($jinnee->category_list($category_filter->get, $classes->sel));
-		
+		$methods->replace;
+		$self->main->area->to_class($classes->sel);
 	}));
 	$self->classes->bind("<<ListboxSelect>>" => $evt_category_list);
 
 
 	$method_filter->bind("<KeyRelease>" => (my $evt_method_list = sub {
 		$methods->replace( $jinnee->method_list($method_filter->get, $categories->sel) );
+		$self->main->area->disable;
 	}));
 	$self->categories->bind("<<ListboxSelect>>" => $evt_method_list);
 
