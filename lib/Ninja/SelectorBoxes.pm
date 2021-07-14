@@ -48,6 +48,21 @@ package Tk::Listbox {
 		$self->activate($index);
 		$self->selectionSet($index);
 	}
+	
+	sub _entry {
+		my ($list, $cb) = @_;
+		my $idx = $list->curselection;
+		my $box = $list->bbox($idx);
+		my $entry = $list->Entry(-borderwidth=>0, -highlightthickness=>1);
+		$entry->bind("<Return>" => sub { $cb->($entry->get); $entry->destroy });
+		$entry->bind("<Escape>" => sub { $entry->destroy });
+		$entry->insert(0, $list->get($idx));
+		$entry->selectionRange(0, "end");
+		$entry->icursor("end");
+		$entry->place(-relx=>0, -y=>$box->[1], -relwidth=>1, -width=>-1);
+		$entry->focus;
+		#$entry->grab;
+	}
 }
 
 sub construct {
@@ -63,9 +78,28 @@ sub construct {
 	my $classes = $self->{classes};
 	my $categories = $self->{categories};
 	my $methods = $self->{methods};
-	
+
+	$self->main->root->bind("<F2>" => sub {
+		my $sel_cat = $categories->curselection;
+		my $sel_met = $methods->curselection;
+		
+		if(@$sel_cat && !@$sel_met) {
+			$categories->_entry(sub {  });
+		}
+		
+		my $sel_pkg = $packages->curselection;
+		my $sel_cls = $classes->curselection;
+		
+		if(@$sel_pkg && !@$sel_cls) {
+			$packages->_entry(sub {  });
+		}
+	});
+
+	$packages->bind("<Double-1>" => sub { $packages->_entry(sub {}) });
 	
 	$package_filter->bind("<KeyRelease>" => (my $evt_package_list = sub {
+		# print "KeyRelease\n";
+		# ::p my $k=$Tk::event? $Tk::event->K: undef;
 		$packages->replace($jinnee->package_list($package_filter->get));
 	}));
 	$evt_package_list->();

@@ -14,28 +14,37 @@ sub new {
 	}, $cls;
 }
 
-#@category Метод
+
+#@category Класс
+
+# подгружает или создаёт файл
+sub _load {
+	my ($path, $template) = @_;
+	my $f;
+	open $f, $path and do { read $f, my $buf, -s $f;	close $f; $buf }
+	or do {
+		mkdir $`, 0644 while $path =~ /\//g;
+		open $f, ">", $path or die "Не могу создать $path. Причина: $!";
+		print $f, $template;
+		close $f;
+		$template
+	}
+}
+
 
 # возвращает тело класса
 sub class_get {
-	my ($self, $class) = @_;
-	
-	my $path = "$class->{path}/.\$";
-	open my $f, $path or die "Не могу открыть $path. Причина: $!";
-	read $f, my $buf, -s $f;
-	close $f;
-	return 1, $buf;
+	my ($self, $class) = @_;	
+	return 1, _load("$class->{path}/.\$", "Nil subclass $class->{name}\n\n");
 }
+
+
+#@category Метод
 
 # Возвращает тело метода раскрашенное разными цветами
 sub method_get {
 	my ($self, $method) = @_;
-	
-	my $path = $method->{path};
-	open my $f, $path or die "Не могу открыть $path. Причина: $!";
-	read $f, my $buf, -s $f;
-	close $f;
-	return 1, $buf;
+	return 1, _load("$method->{path}", "$method->{name}\n\n");
 }
 
 # Компилирует метод и вставляет его в файл с классом
