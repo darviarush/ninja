@@ -47,7 +47,7 @@ package Tk::Listbox {
 		my ($self, $idx, $elem) = @_;
 		$self->insert($idx, $elem->{name});
 		$self->select_element($idx);
-		splice @{$self->{HRAN}}, $idx, $elem;
+		splice @{$self->{HRAN}}, $idx, 0, $elem;
 	}
 	
 	sub rename_element {
@@ -86,6 +86,45 @@ package Tk::Listbox {
 	}
 }
 
+# событие инициализации пакетов
+sub packages_init {
+	my ($self) = @_;
+	$self->packages->replace($self->main->jinnee->package_list($self->package_filter->get));
+	$self
+}
+
+# событие на выбор пакета
+sub package_select {
+	my ($self) = @_;
+	my $package = $self->packages->sel;
+	
+	$self->packages_init, $self->packages->select_element(0) if $package->{name} eq "*";
+	
+	$self->classes->replace($self->main->jinnee->class_list($self->class_filter->get, $package));
+	$self->categories->replace;
+	$self->methods->replace;
+	$self->main->area->disable;
+}
+
+sub class_select {
+	my ($self) = @_;
+	$self->categories->replace($self->main->jinnee->category_list($self->category_filter->get, $self->classes->sel));
+	$self->methods->replace;
+	$self->main->area->to_class($self->classes->sel);
+}
+
+sub category_select {
+	my ($self) = @_;
+	$self->methods->replace( $self->main->jinnee->method_list($self->method_filter->get, $self->categories->sel) );
+	$self->main->area->disable;
+}
+
+sub method_select {
+	my ($self) = @_;
+	$self->main->area->to_method($self->methods->sel);
+}
+
+# создать selector_boxes
 sub construct {
 	my ($self) = @_;
 	
@@ -103,47 +142,24 @@ sub construct {
 	$packages->bind("<Double-1>" => sub { $self->edit_action });
 	$categories->bind("<Double-1>" => sub { $self->edit_action });
 	
-	$package_filter->bind("<KeyRelease>" => (my $evt_package_list = sub {
-		# print "KeyRelease\n";
-		# ::p my $k=$Tk::event? $Tk::event->K: undef;
-		$packages->replace($jinnee->package_list($package_filter->get));
-	}));
-	$evt_package_list->();
+	$package_filter->bind("<KeyRelease>" => sub { $self->packages_init });
+	$self->packages_init;
 
-	$class_filter->bind("<KeyRelease>" => (my $evt_class_list = sub {
-		my $package = $packages->sel;
-		
-		$evt_package_list->(), $packages->select_element(0) if $package->{name} eq "*";
-		
-		$classes->replace($jinnee->class_list($class_filter->get, $package));
-		$categories->replace;
-		$methods->replace;
-		$self->main->area->disable;
-	}));
-	$packages->bind("<<ListboxSelect>>" => $evt_class_list);
+	$class_filter->bind("<KeyRelease>" => sub { $self->package_select });
+	$packages->bind("<<ListboxSelect>>" => sub { $self->package_select });
 	
-	$packages->select_element(0);
-	$evt_class_list->();
+	$packages->select_element(0); $self->package_select;
 
 
-	$category_filter->bind("<KeyRelease>" => (my $evt_category_list = sub {
-		$categories->replace($jinnee->category_list($category_filter->get, $classes->sel));
-		$methods->replace;
-		$self->main->area->to_class($classes->sel);
-	}));
-	$self->classes->bind("<<ListboxSelect>>" => $evt_category_list);
+	$category_filter->bind("<KeyRelease>" => sub { $self->class_select });
+	$self->classes->bind("<<ListboxSelect>>" => sub { $self->class_select });
 
 
-	$method_filter->bind("<KeyRelease>" => (my $evt_method_list = sub {
-		$methods->replace( $jinnee->method_list($method_filter->get, $categories->sel) );
-		$self->main->area->disable;
-	}));
-	$self->categories->bind("<<ListboxSelect>>" => $evt_method_list);
+	$method_filter->bind("<KeyRelease>" => sub { $self->category_select });
+	$self->categories->bind("<<ListboxSelect>>" => sub { $self->category_select });
 
 
-	$methods->bind("<<ListboxSelect>>" => (my $evt_method_show = sub {
-		$self->main->area->to_method($methods->sel);
-	}));
+	$methods->bind("<<ListboxSelect>>" => sub { $self->method_select });
 
 	
 	$self
@@ -176,7 +192,9 @@ sub new_action {
 	
 	given($type) {
 		$self->packages->_entry(sub {
-			$self->packages->insert_element($idx+1, $jinnee->package_new(shift));
+			my $package = $jinnee->package_new(shift);
+			$self->packages->insert_element($idx+1, $package);
+			$self->package_select;
 		}) when "packages";
 		#$self->classes->_entry(sub {  }) when "classes";
 		$self->categories->_entry(sub {  }) when "categories";
