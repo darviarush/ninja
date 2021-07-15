@@ -9,6 +9,7 @@ use Tk::TextUndo;
 use Ninja::Config;
 use Ninja::SelectorBoxes;
 use Ninja::MethodArea;
+use Ninja::Menu;
 
 sub new {
 	my $cls = shift;
@@ -64,17 +65,11 @@ sub construct {
 	
 	$self->{root} = my $root = MainWindow->new(-title => "Ninja");
 
-
 	my $menu = $root->Menu;
 	$root->configure(-menu => $menu);
 
-	my $file_menu = $menu->Menu();
-	$menu->cascade(-label => 'Файл', -menu => $file_menu);
-
-	$file_menu->command(-label => 'Открыть', -command => sub {});
-	$file_menu->separator;
-	$file_menu->command(-label => 'Завершить', -command => sub { shift->quit() });
-
+	$self->{menu} = Ninja::Menu->new(menu=>$menu, main=>$self)->construct;
+	
 	my $main = $root->Panedwindow(-orient => 'vertical');
 	$self->{sections} = my $sections = $main->Panedwindow(-orient => 'horizontal');
 	my $text = $main->Scrolled("TextUndo", -scrollbars=>"osoe",
@@ -147,6 +142,20 @@ sub close {
 	
 	$self->config->save;
 	$self->root->destroy;
+	
+	$self
+}
+
+sub errorbox {
+	my ($self, $error) = @_;
+	
+	$self->root->MsgBox(
+		-icon => "error", 
+		-title => "error", 
+		-type => "ok", 
+		-detail => "hi!", 
+		-message => $error,
+	)->Show; 
 	
 	$self
 }

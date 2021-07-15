@@ -11,6 +11,8 @@ sub new {
 	bless {@_}, ref $cls || $cls;
 }
 
+sub path { shift()->{path} }
+
 sub load {
 	my ($self) = @_;
 	
@@ -44,9 +46,13 @@ sub save {
 	$self
 }
 
-sub path {
-	my ($self) = @_;
-	$self->{path}
+sub at {
+	my ($self, $path, $default) = @_;
+	my $s = $self;
+	my @path = split /\//, $path;
+	my $last = pop @path;
+	$s = $s->{$_} for @path;
+	$s->{$last} //= $default
 }
 
 

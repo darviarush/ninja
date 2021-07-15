@@ -46,6 +46,14 @@ sub enable {
 	$self
 }
 
+sub set {
+	my ($self, $text) = @_;
+	$self->area->delete('1.0', 'end');
+	$self->area->insert('end', $text);
+	$self->area->focus;
+	$self
+}
+
 
 sub to_class {
 	my ($self, $class) = @_;
@@ -54,10 +62,9 @@ sub to_class {
 	
 	# текст с эскейп-последовательностями для раскраски
 	my ($startlineno, $text) = eval { $self->main->jinnee->class_get($class); };
-	$self->errorbox($@) if $@;
+	$self->main->errorbox($@) if $@;
 	
-	$self->area->delete('1.0', 'end');
-	$self->area->insert('end', $text);
+	$self->set($text);
 }
 
 sub to_method {
@@ -68,26 +75,9 @@ sub to_method {
 	
 	# текст с эскейп-последовательностями для раскраски
 	my ($startlineno, $text) = eval { $self->main->jinnee->method_get($method); };
-	$self->errorbox($@) if $@;
+	$self->main->errorbox($@) if $@;
 	
-	$self->area->delete('1.0', 'end');
-	$self->area->insert('end', $text);
-	
-	$self
-}
-
-sub errorbox {
-	my ($self, $error) = @_;
-	
-	$self->area->MsgBox(
-		-icon => "error", 
-		-title => "error", 
-		-type => "ok", 
-		-detail => "hi!", 
-		-message => $error,
-	)->Show; 
-	
-	$self
+	$self->set($text);
 }
 
 

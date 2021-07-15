@@ -9,48 +9,8 @@ sub new {
 	bless {
 		INC => ["kernel", "src"],
 		packages => {},			# пакет => { INC => "src" }
-		classes => {},			# класс => { package => }
 		@_
 	}, $cls;
-}
-
-
-#@category Класс
-
-# подгружает или создаёт файл
-sub _load {
-	my ($path, $template) = @_;
-	my $f;
-	open $f, $path and do { read $f, my $buf, -s $f;	close $f; $buf }
-	or do {
-		mkdir $`, 0644 while $path =~ /\//g;
-		open $f, ">", $path or die "Не могу создать $path. Причина: $!";
-		print $f, $template;
-		close $f;
-		$template
-	}
-}
-
-
-# возвращает тело класса
-sub class_get {
-	my ($self, $class) = @_;	
-	return 1, _load("$class->{path}/.\$", "Nil subclass $class->{name}\n\n");
-}
-
-
-#@category Метод
-
-# Возвращает тело метода раскрашенное разными цветами
-sub method_get {
-	my ($self, $method) = @_;
-	return 1, _load("$method->{path}", "$method->{name}\n\n");
-}
-
-# Компилирует метод и вставляет его в файл с классом
-sub method_compile {
-	my ($self) = @_;
-	$self
 }
 
 
@@ -114,6 +74,94 @@ sub method_list {
 	} $category->{all}? ls $category->{path}: $category->{path}
 }
 
+
+
+
+#@category Файлы
+
+sub _mkpath {
+	my ($path) = @_;
+	mkdir $`, 0644 while $path =~ /\//g;
+}
+
+# подгружает или создаёт файл
+sub _load {
+	my ($path, $template) = @_;
+	my $f;
+	open $f, $path and do { read $f, my $buf, -s $f;	close $f; $buf }
+	or do {
+		_mkpath($path);
+		open $f, ">", $path or die "Не могу создать $path. Причина: $!";
+		print $f, $template;
+		close $f;
+		$template
+	}
+}
+
+sub _ls {
+	my ($path) = @_;
+	return (grep { !/\/\.{1,2}\z/ } <"$path/.*">), <"$path/*">;
+}
+
+sub _rmtree {
+	my ($path) = @_;
+	
+	unlink($path) || die("Нельзя удалить файл $path: $!"), return if !-d $path;
+	
+	_rmtree($_) for _ls($path);
+	rmdir $path;
+}
+
+
+#@category Читатели
+
+# возвращает тело класса
+sub class_get {
+	my ($self, $class) = @_;	
+	return 1, _load("$class->{path}/.\$", "Nil subclass $class->{name}\n\n");
+}
+
+
+# Возвращает тело метода раскрашенное разными цветами
+sub method_get {
+	my ($self, $method) = @_;
+	return 1, _load("$method->{path}", "$method->{name}\n\n");
+}
+
+
+
+#@category Демиурги
+
+sub package_new {
+	my ($self, $name) = @_;
+	my $path = $self->{INC}[$#{$self->{INC}[0]}] . "/$name";
+	_mkpath("$path/");
+	die "Невозможно создать пакет $name ($path): $!" if !-e $path;
+	return {name => $name, path => $path};
+}
+
+sub package_rename {
+	my ($self, $package, $name) = @_;
+	my $path = $package->{path};
+	$path =~ s![^/]*$!$name!;
+	rename $package->{path}, $path or die "Невозможно переименовать $package->{path} -> $path: $!";
+	return {name => $name, path => $path};
+}
+
+# Компилирует метод и вставляет его в файл с классом
+sub method_compile {
+	my ($self) = @_;
+	$self
+}
+
+
+
+#@category Стиратели
+
+sub package_erase {
+	my ($self, $package) = @_;
+	_rmtree($package->{path});
+}
 
 
 1;
