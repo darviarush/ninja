@@ -154,8 +154,6 @@ sub method_compile {
 	$self
 }
 
-
-
 #@category Стиратели
 
 sub package_erase {
