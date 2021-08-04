@@ -37,8 +37,10 @@ sub update {
 	my ($self) = @_;
 	
 	my $text = $self->text;
-	print("RETURN\n"), return $self if $text eq $self->{text};
+	return $self if $text eq $self->{text};
 	$self->{text} = $text;
+	
+	print "<<SAVE>>\n";
 	
 	my $pos = $self->area->index('insert');
 	my ($lineno, $colno) = split /\./, $pos;
