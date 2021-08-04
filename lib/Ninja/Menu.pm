@@ -27,15 +27,32 @@ sub construct {
 	my $key;
 	
 	$self->cascade('Файл');
-	$self->command('Открыть', "F5", sub {});
-	$self->top->separator;
-	$self->command('Завершить', "F10", sub { $main->root->quit });
+		$self->command('Открыть', "F5", sub {});
+		$self->top->separator;
+		$self->command('Завершить', "F10", sub { $main->root->quit });
 	$self->pop;
 	
 	$self->cascade('Правка');
-	$self->command('Создать', "F7", sub { $main->selectors->new_action });
-	$self->command('Изменить', "F2", sub { $main->selectors->edit_action });
-	$self->command('Удалить', "F8", sub { $main->selectors->delete_action });
+		$self->command('Создать', "F7", sub { $main->selectors->new_action });
+		$self->command('Изменить', "F2", sub { $main->selectors->edit_action });
+		$self->command('Удалить', "F8", sub { $main->selectors->delete_action });
+		$self->top->separator;
+		$self->command('Отменить', "Control-Alt-Z", sub { $main->selectors->history_back_action });
+		$self->command('Применить', "Control-Alt-Y", sub { $main->selectors->history_next_action });
+		$self->top->separator;
+		$self->command('Отменить ввод', "Control-Z", sub { $main->selectors->area_back_action });
+		$self->command('Применить ввод', "Control-Y", sub { $main->selectors->area_next_action });
+		$self->top->separator;
+		$self->command('Найти', "Control-F", sub { $main->selectors->find_action(0, 0) });
+		$self->command('Заменить', "Control-R", sub { $main->selectors->find_action(0, 1) });
+		$self->top->separator;
+		$self->command('Найти в проекте', "Control-Shift-F", sub { $main->selectors->find_action(1, 1) });
+		$self->command('Заменить в проекте', "Control-Shift-R", sub { $main->selectors->find_action(1, 1) });
+	$self->pop;
+	
+	$self->cascade('Навигация');
+		$self->command('Назад', "Control-Alt-Left", sub { $main->selectors->move_back_action });
+		$self->command('Вперёд', "Control-Alt-Right", sub { $main->selectors->move_next_action });
 	$self->pop;
 	
 	$self

@@ -84,16 +84,26 @@ sub _mkpath {
 	mkdir $`, 0644 while $path =~ /\//g;
 }
 
+sub _save {
+	my ($path, $body) = @_;
+	my $f;
+	open $f, ">", $path or die "Не могу создать $path. Причина: $!";
+	print $f $body;
+	close $f;
+}
+
 # подгружает или создаёт файл
 sub _load {
 	my ($path, $template) = @_;
 	my $f;
-	open $f, $path and do { read $f, my $buf, -s $f;	close $f; $buf }
-	or do {
+	
+	open $f, "<", $path and do { read $f, my $buf, -s $f;	close $f; ::p my $x="_load $path"; $buf }
+	or do { # если $buf выше будет пустой, то выполнится и эта ветвь
 		_mkpath($path);
 		open $f, ">", $path or die "Не могу создать $path. Причина: $!";
-		print $f, $template;
+		print $f $template;
 		close $f;
+		::p my $x="_create $path";
 		$template
 	}
 }
@@ -117,18 +127,32 @@ sub _rmtree {
 
 # возвращает тело класса
 sub class_get {
-	my ($self, $class) = @_;	
-	return 1, _load("$class->{path}/.\$", "Nil subclass $class->{name}\n\n");
+	my ($self, $class) = @_;
+	return 1, $self->color( _load("$class->{path}/.\$", "Nil subclass $class->{name}\n\n") );
 }
-
 
 # Возвращает тело метода раскрашенное разными цветами
 sub method_get {
 	my ($self, $method) = @_;
-	return 1, _load("$method->{path}", "$method->{name}\n\n");
+	return 1, $self->color( _load("$method->{path}", "$method->{name}\n\n") );
 }
 
 
+#@category Писатели
+
+# возвращает тело класса
+sub class_put {
+	my ($self, $class, $body) = @_;
+	_save("$class->{path}/.\$", $body);
+	$self->color($body);
+}
+
+# Сохраняет тело метода
+sub method_put {
+	my ($self, $method, $body) = @_;
+	_save("$method->{path}", $body);
+	$self->color($body);
+}
 
 #@category Демиурги
 
@@ -161,5 +185,71 @@ sub package_erase {
 	_rmtree($package->{path});
 }
 
+#@category Синтаксис
+
+sub tags {
+	my ($self) = @_;
+	
+	+{
+		number => [-foreground => '#8A2BE2'],
+		string => [-foreground => '#1E90FF'],
+		
+		variable => [-foreground => '#008080'],
+		class => [-foreground => '#C71585'],
+		
+		operator => [-foreground => '#8B0000'],
+		compare_operator => [-foreground => '#DC143C'],
+		logic_operator => [-foreground => '#C71585'],
+		
+		staple => [-foreground => '#4682B4'],
+		bracket => [-foreground => '#5F9EA0'],
+		brace => [-foreground => '#00008B'],
+		
+		punct => [-foreground => '#00008B'],
+		remark => [-foreground => '#00008B'],
+	}
+}
+
+sub color {
+	my ($self, $text) = @_;
+
+	my $prev = 0;
+	my $ret = [];
+
+	my $re_op = '[-+*/^%$!<>=.:,;|&]';
+
+	my $re = qr{
+		(?<number> [+-]?\d+(\.\d+)? ) |
+		(?<string> "(\\"|.)*") |
+		
+		(?<class> \b [A-Z]\w+ \b) |
+		(?<variable> \b [a-zA-Z] \b) |
+		
+		(?<logic_operator> \b (not|and|or) \b ) |
+		(?<compare_operator> [<>=]$re_op* ) |
+		(?<operator> $re_op+ ) |
+		
+		(?<staple> [()] ) |
+		(?<bracket> [\[\]] ) |
+		(?<brace> [{}] ) |
+		
+		(?<punct> [|,;] ) |
+		
+		(?<newline> \n ) |
+		(?<space> \s+ )
+	}xsn;
+	while($text =~ /$re/go) {
+		my $point = length $`;
+		if($point - $prev != 0) {
+			push @$ret, [substr $`, $prev, $point];
+		}
+		$prev = $point + length $&;
+		
+		my ($tag, $lexem) = each %+;
+		push @$ret, [$lexem, $tag !~ /^(newline|space)$/n? $tag: ()];
+	}
+	
+	$ret
+}
 
 1;

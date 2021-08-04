@@ -4,7 +4,8 @@ package Ninja::MainWindow;
 use common::sense;
 
 use Tk;
-use Tk::TextUndo;
+use Tk::Text;
+use Tk::MsgBox;
 
 use Ninja::Config;
 use Ninja::SelectorBoxes;
@@ -72,7 +73,7 @@ sub construct {
 	
 	my $main = $root->Panedwindow(-orient => 'vertical');
 	$self->{sections} = my $sections = $main->Panedwindow(-orient => 'horizontal');
-	my $text = $main->Scrolled("TextUndo", -scrollbars=>"osoe",
+	my $text = $main->Scrolled("Text", -scrollbars=>"osoe",
 		-wrap => "word",
 	);
 	$text->Subwidget("yscrollbar")->configure(-width=>10);
@@ -147,13 +148,13 @@ sub close {
 }
 
 sub errorbox {
-	my ($self, $error) = @_;
+	my ($self, $error, $title) = @_;
 	
 	$self->root->MsgBox(
 		-icon => "error", 
-		-title => "error", 
+		-title => $title // "error", 
 		-type => "ok", 
-		-detail => "hi!", 
+		#-detail => "hi!", 
 		-message => $error,
 	)->Show; 
 	
