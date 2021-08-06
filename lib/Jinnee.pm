@@ -198,6 +198,8 @@ sub tags {
 		class => [-foreground => '#C71585'],
 		
 		operator => [-foreground => '#8B0000'],
+		prefix => [-foreground => '#008080'],
+		postfix => [-foreground => '#1E90FF'],
 		compare_operator => [-foreground => '#DC143C'],
 		logic_operator => [-foreground => '#C71585'],
 		
@@ -206,9 +208,17 @@ sub tags {
 		brace => [-foreground => '#00008B'],
 		
 		punct => [-foreground => '#00008B'],
-		remark => [-foreground => '#00008B'],
+		remark => [-foreground => '#696969'],
 	}
 }
+
+#-relief => 'raised',
+# -font => [
+	    # -family => 'courier', 
+	    # -size => 12, 
+	    # -weight => 'bold', 
+	    # -slant => 'italic'
+    # ],
 
 sub color {
 	my ($self, $text) = @_;
@@ -216,14 +226,18 @@ sub color {
 	my $prev = 0;
 	my $ret = [];
 
-	my $re_op = '[-+*/^%$!<>=.:,;|&]';
+	my $re_op = '[-+*/^%$!<>=.:,;|&\\#]';
 
 	my $re = qr{
+		(?<remark> ([\ \t]|^) \# .* ) |
+		
 		(?<number> [+-]?\d+(\.\d+)? ) |
-		(?<string> "(\\"|.)*") |
+		(?<string> "(\\"|.)*" | '(\\'|.)*' ) |
 		
 		(?<class> \b [A-Z]\w+ \b) |
 		(?<variable> \b [a-zA-Z] \b) |
+		
+		
 		
 		(?<logic_operator> \b (not|and|or) \b ) |
 		(?<compare_operator> [<>=]$re_op* ) |
@@ -235,9 +249,11 @@ sub color {
 		
 		(?<punct> [|,;] ) |
 		
+		
+		
 		(?<newline> \n ) |
 		(?<space> \s+ )
-	}xsn;
+	}xmn;
 	while($text =~ /$re/go) {
 		my $point = length $`;
 		if($point - $prev != 0) {
