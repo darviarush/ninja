@@ -20,6 +20,7 @@ sub construct {
 	
 	my $main = $self->main;
 	my $menu = $self->menu;
+	my $area = $main->area;
 	
 	push @{$self->{PATH}}, $menu;
 	
@@ -32,7 +33,7 @@ sub construct {
 		$self->command('Завершить', "F10", sub { $main->root->quit });
 	$self->pop;
 	
-	$self->cascade('Правка');
+	$self->cascade('Проект');
 		$self->command('Создать', "F7", sub { $main->selectors->new_action });
 		$self->command('Изменить', "F2", sub { $main->selectors->edit_action });
 		$self->command('Удалить', "F8", sub { $main->selectors->delete_action });
@@ -48,6 +49,15 @@ sub construct {
 		$self->top->separator;
 		$self->command('Найти в проекте', "Control-Shift-F", sub { $main->selectors->find_action(1, 1) });
 		$self->command('Заменить в проекте', "Control-Shift-R", sub { $main->selectors->find_action(1, 1) });
+	$self->pop;
+	
+	
+	$self->cascade('Редактор');
+		$self->command('Копировать', "Control-c, Control-Insert", sub { $area->area->eventGenerate("<<Copy>>") });
+		$self->command('Вставить', "Control-v, Shift-Insert", sub { $area->area->eventGenerate("<<Paste>>") });
+		$self->command('Вырезать', "Control-x", sub { $area->area->eventGenerate("<<Cut>>") });
+		$self->top->separator;
+		$self->command('Выделить всё', "Control-a", sub { $area->select_all });
 	$self->pop;
 	
 	$self->cascade('Навигация');
@@ -75,7 +85,13 @@ sub command {
 	my $key = $self->main->config->at("menu/$path", $key_default);
 	$self->top->command(-label => $label, -accelerator => $key, -command => $command);
 	
-	$self->main->root->bind("<$key>" => $command);
+	my @keys = split /,\s*/, $key;
+	my $first_key = shift @keys;
+	$self->main->root->bind("<$first_key>" => $command);
+	my $action = sub { $self->main->root->eventGenerate("<$first_key>") };
+	for my $second_key (@keys) {
+		$self->main->root->bind("<$second_key>" => $action);
+	}
 	
 	$self
 }

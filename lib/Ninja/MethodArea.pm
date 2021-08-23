@@ -18,13 +18,13 @@ sub construct {
 	my ($self) = @_;
 
 	$self->area->bind("<KeyRelease>" => sub { $self->update });
-	$self->area->bind("<Control-a>" => sub { $self->area->SetCursor('end'); $self->area->tagAdd('sel', '1.0', "end"); });
-	$self->area->bind("<Control-c>" => sub { $self->area->eventGenerate("<<Copy>>") });
-	$self->area->bind("<Control-v>" => sub { $self->area->eventGenerate("<<Paste>>") });
-	$self->area->bind("<Control-x>" => sub { $self->area->eventGenerate("<<Cut>>") });
+	#$self->area->bind("<Control-a>" => ;
+	# $self->area->bind("<Control-c>" => sub { $self->area->eventGenerate("<<Copy>>") });
+	# $self->area->bind("<Control-v>" => sub { $self->area->eventGenerate("<<Paste>>") });
+	# $self->area->bind("<Control-x>" => sub { $self->area->eventGenerate("<<Cut>>") });
 
-	$self->area->bind("<Control-Insert>" => sub { $self->area->eventGenerate("<Control-c>") });
-	$self->area->bind("<Shift-Insert>" => sub { $self->area->eventGenerate("<Control-v>") });
+	# $self->area->bind("<Control-Insert>" => sub { $self->area->eventGenerate("<Control-c>") });
+	# $self->area->bind("<Shift-Insert>" => sub { $self->area->eventGenerate("<Control-v>") });
 
 	my $tags = $self->main->jinnee->tags;
 
@@ -128,5 +128,10 @@ sub to_method {
 	$self->set($text);
 }
 
+sub select_all { 
+	my ($self) = @_;
+	$self->area->SetCursor('end'); 
+	$self->area->tagAdd('sel', '1.0', "end"); 
+}
 
 1;
