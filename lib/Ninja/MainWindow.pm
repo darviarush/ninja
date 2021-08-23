@@ -147,15 +147,35 @@ sub close {
 	$self
 }
 
+# sub Tk::Error {
+	# my ($widget,$error,@locations) = @_;
+	
+	
+	# utf8::decode($error);
+	# print "Tk::Error: ", utf8::is_utf8($error)? 'yes': 'no', " ", $error;
+	
+	# ::p($error);
+	# ::p(@locations);
+	
+	
+# }
+
 sub errorbox {
-	my ($self, $error, $title) = @_;
+	my ($self, $error, @args) = @_;
+		
+	$self->msgbox($error, -icon => "error", -title => "error", @args);
+}
+
+sub msgbox {
+	my ($self, $message, @args) = @_;
 	
 	$self->root->MsgBox(
-		-icon => "error", 
-		-title => $title // "error", 
+		-icon => "info", 
+		-title => "message", 
 		-type => "ok", 
 		#-detail => "hi!", 
-		-message => $error,
+		-message => $message,
+		@args
 	)->Show; 
 	
 	$self

@@ -49,10 +49,17 @@ sub update {
 	
 	# получаем колоризированный текст
 	my $put = "$self->{type}_put";
-	my $text = eval { $self->main->jinnee->$put($self->{who}, $text) };
-	$self->main->errorbox($@, "Обновление окна"), return $self if $@;
+	my ($who, $text) = eval { $self->main->jinnee->$put($self->{who}, $text) };
+	$self->main->errorbox($@, -title => "Обновление окна"), return $self if $@;
 	
 	$self->set($text);
+	
+	if($who->{name} ne $self->{who}{name}) {
+		my $sel = $self->{type} eq "class"? $self->main->selectors->classes: $self->main->selectors->methods;
+		$sel->rename_element($sel->curselection->[0], $who);
+	}
+	
+	$self->{who} = $who;
 	
 	$self
 }

@@ -67,13 +67,13 @@ package Tk::Listbox {
 	}
 	
 	sub _entry {
-		my ($self, $cb) = @_;
+		my ($self, $main, $cb) = @_;
 		my $idx = $self->curselection->[0];
 		my $box = $self->bbox($idx);
 		my $entry = $self->Entry(-borderwidth=>0, -highlightthickness=>1);
 		$entry->bind("<Return>" => sub { 
 			eval { $cb->($entry->get, $idx, $self); };
-			$self->main->errorbox($@) if $@;
+			$main->errorbox($@) if $@;
 			$entry->destroy;
 		});
 		$entry->bind("<Escape>" => sub { $entry->destroy });
@@ -191,14 +191,14 @@ sub new_action {
 	my $jinnee = $self->main->jinnee;
 	
 	given($type) {
-		$self->packages->_entry(sub {
+		$self->packages->_entry($self->main, sub {
 			my $package = $jinnee->package_new(shift);
 			$self->packages->insert_element($idx+1, $package);
 			$self->package_select;
 		}) when "packages";
-		#$self->classes->_entry(sub {  }) when "classes";
-		$self->categories->_entry(sub {  }) when "categories";
-		#$self->methods->_entry(sub {  }) when "methods";
+		#$self->classes->_entry($self->main, sub {  }) when "classes";
+		$self->categories->_entry($self->main, sub {  }) when "categories";
+		#$self->methods->_entry($self->main, sub {  }) when "methods";
 	}
 }
 
@@ -208,13 +208,13 @@ sub edit_action {
 	my $jinnee = $self->main->jinnee;
 	my ($type, $idx) = $self->who;
 	given($type) {
-		$self->packages->_entry(sub {
+		$self->packages->_entry($self->main, sub {
 			$self->packages->rename_element($idx, $jinnee->package_rename($self->packages->sel, shift));
 		}) when "packages" and $idx != 0;
 	
-		#$self->classes->_entry(sub {  }) when "classes";
-		$self->categories->_entry(sub {  }) when "categories";
-		#$self->methods->_entry(sub {  }) when "methods";
+		#$self->classes->_entry($self->main, sub {  }) when "classes";
+		$self->categories->_entry($self->main, sub {  }) when "categories";
+		#$self->methods->_entry($self->main, sub {  }) when "methods";
 	}
 }
 
@@ -225,9 +225,9 @@ sub delete_action {
 	my ($type, $idx) = $self->who;
 	given($type) {
 		$jinnee->package_erase($self->packages->sel), $self->packages->delete($idx) when "packages";
-		#$self->classes->_entry(sub {  }) when "classes";
-		$self->categories->_entry(sub {  }) when "categories";
-		#$self->methods->_entry(sub {  }) when "methods";
+		$jinnee->class_erase($self->classes->sel), $self->classes->delete($idx) when "classes";
+		$jinnee->category_erase($self->categories->sel), $self->categories->delete($idx) when "categories";
+		$jinnee->method_erase($self->methods->sel), $self->methods->delete($idx) when "methods";
 	}
 }
 

@@ -22,7 +22,8 @@ sub new {
 
 sub ls($) {
 	my ($path) = @_;
-	return (grep { !/\/(\.{1,2}|\.\$)\z/ } <"$path/.*">), <"$path/*">;
+
+	return @{[(grep { !/\/(\.{1,2}|\.\$)\z/ } <"$path/.*">), <"$path/*">]};
 }
 
 
@@ -30,14 +31,16 @@ sub ls($) {
 sub package_list {
 	my ($self, $re) = @_;
 	return +{name => "*", all => 1},
-	grep { /$re/i } map { my $x=$_; map {
-		+{ path => $_, name => substr $_, 1+length $x }
-	} ls $_ } @{$self->{INC}}
+		grep { /$re/i } map { my $x=$_; map {
+			+{ path => $_, name => substr $_, 1+length $x }
+		} ls $_ } @{$self->{INC}}
 }
 
 # список классов в указанном пакете
 sub class_list {
 	my ($self, $re, $package) = @_;
+	
+	$self->class_get({name=>"", path=>"$package->{path}/-"}) if !$package->{all} && ls($package->{path}) == 0;
 	
 	grep { /$re/i }	
 	map { my $path = $_;
@@ -45,7 +48,6 @@ sub class_list {
 			+{ path => $_, name => substr $_, 1+length $path }
 		} ls $path
 	} $package->{all}? (map { ls $_ } @{$self->{INC}}): $package->{path}
-
 }
 
 # список категорий
@@ -81,13 +83,13 @@ sub method_list {
 
 sub _mkpath {
 	my ($path) = @_;
-	mkdir $`, 0644 while $path =~ /\//g;
+	mkdir $`, 0755 while $path =~ /\//g;
 }
 
 sub _save {
 	my ($path, $body) = @_;
 	my $f;
-	open $f, ">", $path or die "Не могу создать $path. Причина: $!";
+	open $f, ">", $path or die "Не могу создать `$path`. Причина: $!";
 	print $f $body;
 	close $f;
 }
@@ -97,10 +99,11 @@ sub _load {
 	my ($path, $template) = @_;
 	my $f;
 	
-	open $f, "<", $path and do { read $f, my $buf, -s $f;	close $f; ::p my $x="_load $path"; $buf }
+	
+	open $f, "<", $path and do { read $f, my $buf, -s $f; close $f; $buf }
 	or do { # если $buf выше будет пустой, то выполнится и эта ветвь
 		_mkpath($path);
-		open $f, ">", $path or die "Не могу создать $path. Причина: $!";
+		open $f, ">", $path or die "Не могу создать `$path`. Причина: $!";
 		print $f $template;
 		close $f;
 		::p my $x="_create $path";
@@ -116,7 +119,7 @@ sub _ls {
 sub _rmtree {
 	my ($path) = @_;
 	
-	unlink($path) || die("Нельзя удалить файл $path: $!"), return if !-d $path;
+	unlink($path) || die("Нельзя удалить файл `$path`. Причина: $!"), return if !-d $path;
 	
 	_rmtree($_) for _ls($path);
 	rmdir $path;
@@ -140,18 +143,42 @@ sub method_get {
 
 #@category Писатели
 
-# возвращает тело класса
+# сохраняет и возвращает раскрашенным тело класса
 sub class_put {
 	my ($self, $class, $body) = @_;
 	_save("$class->{path}/.\$", $body);
-	$self->color($body);
+	
+	if($body =~ /^\w+ subclass ([A-Z]\w+)/) {
+		my $name = $1;
+		my $path = $class->{path};
+		$path =~ s!$class->{name}$!$name!;
+		rename $class->{path}, $path and do {
+			$class = {name => $name, path => $path};
+		};
+	} else {
+		$class = {%$class, name => "-"};
+	}
+	
+	return $class, $self->color($body);
 }
 
 # Сохраняет тело метода
 sub method_put {
 	my ($self, $method, $body) = @_;
 	_save("$method->{path}", $body);
-	$self->color($body);
+	
+	if($body =~ /^\S.*/) {
+		my $name = $&;
+		my $path = $method->{path};
+		$path =~ s!$method->{name}$!$name!;
+		rename $method->{path}, $path and do {
+			$method = {name => $name, path => $path};
+		};
+	} else {
+		$method = {%$method, name => "-"};
+	}
+	
+	return $method, $self->color($body);
 }
 
 #@category Демиурги
@@ -160,7 +187,7 @@ sub package_new {
 	my ($self, $name) = @_;
 	my $path = $self->{INC}[$#{$self->{INC}[0]}] . "/$name";
 	_mkpath("$path/");
-	die "Невозможно создать пакет $name ($path): $!" if !-e $path;
+	die "Невозможно создать пакет $name ($path): $!" if !-e $path;	
 	return {name => $name, path => $path};
 }
 
@@ -184,6 +211,17 @@ sub package_erase {
 	my ($self, $package) = @_;
 	_rmtree($package->{path});
 }
+
+sub class_erase {
+	my ($self, $class) = @_;
+	_rmtree($class->{path});
+}
+
+sub category_erase {
+	my ($self, $category) = @_;
+	_rmtree($category->{path});
+}
+
 
 #@category Синтаксис
 
