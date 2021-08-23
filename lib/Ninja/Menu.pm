@@ -20,7 +20,6 @@ sub construct {
 	
 	my $main = $self->main;
 	my $menu = $self->menu;
-	my $area = $main->area;
 	
 	push @{$self->{PATH}}, $menu;
 	
@@ -53,11 +52,11 @@ sub construct {
 	
 	
 	$self->cascade('Редактор');
-		$self->command('Копировать', "Control-c, Control-Insert", sub { $area->area->eventGenerate("<<Copy>>") });
-		$self->command('Вставить', "Control-v, Shift-Insert", sub { $area->area->eventGenerate("<<Paste>>") });
-		$self->command('Вырезать', "Control-x", sub { $area->area->eventGenerate("<<Cut>>") });
+		$self->command('Копировать', "Control-c, Control-Insert", sub { $main->area->area->eventGenerate("<<Copy>>") });
+		$self->command('Вставить', "Control-v, Shift-Insert", sub { $main->area->area->eventGenerate("<<Paste>>") });
+		$self->command('Вырезать', "Control-x", sub { $main->area->area->eventGenerate("<<Cut>>") });
 		$self->top->separator;
-		$self->command('Выделить всё', "Control-a", sub { $area->select_all });
+		$self->command('Выделить всё', "Control-a", sub { $main->area->select_all });
 	$self->pop;
 	
 	$self->cascade('Навигация');

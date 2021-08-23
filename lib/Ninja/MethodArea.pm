@@ -35,17 +35,16 @@ sub construct {
 
 sub update {
 	my ($self) = @_;
+
+	return $self if $self->area->cget('state') eq 'disabled';
+
+	$self->show_pos;
 	
 	my $text = $self->text;
 	return $self if $text eq $self->{text};
 	$self->{text} = $text;
 	
-	print "<<SAVE>>\n";
-	
-	my $pos = $self->area->index('insert');
-	my ($lineno, $colno) = split /\./, $pos;
-	$colno++;
-	$self->main->position->configure(-text => "Line $lineno, Column $colno");
+	print "<<SAVE>>$text\n";
 	
 	# получаем колоризированный текст
 	my $put = "$self->{type}_put";
@@ -89,8 +88,7 @@ sub set {
 		push @text, $item->[0];
 	}
 	
-	$self->area->SetCursor($pos);
-	$self->area->focus;
+	$self->goto($pos);
 	
 	$self->{text} = join "", @text;
 	
@@ -110,6 +108,7 @@ sub to_class {
 	my ($startlineno, $text) = eval { $self->main->jinnee->class_get($class); };
 	$self->main->errorbox($@) if $@;
 	$self->set($text);
+	$self->goto("1.end");
 }
 
 sub to_method {
@@ -126,6 +125,7 @@ sub to_method {
 	$self->main->errorbox($@) if $@;
 	
 	$self->set($text);
+	$self->goto("1.end");
 }
 
 sub select_all { 
@@ -133,5 +133,25 @@ sub select_all {
 	$self->area->SetCursor('end'); 
 	$self->area->tagAdd('sel', '1.0', "end"); 
 }
+
+# переставляет курсор
+sub goto {
+	my ($self, $pos) = @_;
+	$self->area->SetCursor($pos);
+	$self->area->focus;
+	$self->show_pos;
+	$self
+}
+
+# показывает позицию курсора в тулбаре
+sub show_pos {
+	my ($self) = @_;
+	my $pos = $self->area->index('insert');
+	my ($lineno, $colno) = split /\./, $pos;
+	$colno++;
+	$self->main->position->configure(-text => "Line $lineno, Column $colno");
+	$self
+}
+
 
 1;

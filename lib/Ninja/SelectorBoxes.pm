@@ -190,16 +190,34 @@ sub new_action {
 	my ($type, $idx) = $self->who;
 	my $jinnee = $self->main->jinnee;
 	
-	given($type) {
+	
+	if($type eq "packages") {
 		$self->packages->_entry($self->main, sub {
 			my $package = $jinnee->package_new(shift);
 			$self->packages->insert_element($idx+1, $package);
 			$self->package_select;
-		}) when "packages";
-		#$self->classes->_entry($self->main, sub {  }) when "classes";
-		$self->categories->_entry($self->main, sub {  }) when "categories";
-		#$self->methods->_entry($self->main, sub {  }) when "methods";
+		});
 	}
+	elsif($type eq "classes") {
+		my $package = $self->packages->sel;
+		
+		return if $package->{all};
+		
+		my $class = $jinnee->class_new("-", $package);
+		$self->classes->insert_element($idx+1, $class);
+		$self->class_select;
+	}
+	elsif($type eq "categories") {
+		$self->categories->_entry($self->main, sub {
+			my $class = $self->classes->sel;
+			my $category = $jinnee->category_new(shift, $class);
+			$self->categories->insert_element($idx+1, $category);
+			$self->category_select;
+		});
+	}
+	#$self->categories->_entry($self->main, sub {  }) when "categories";
+	#$self->methods->_entry($self->main, sub {  }) when "methods";
+	
 }
 
 # редактировать категорию или пакет
@@ -207,15 +225,16 @@ sub edit_action {
 	my ($self) = @_;
 	my $jinnee = $self->main->jinnee;
 	my ($type, $idx) = $self->who;
-	given($type) {
-		$self->packages->_entry($self->main, sub {
-			$self->packages->rename_element($idx, $jinnee->package_rename($self->packages->sel, shift));
-		}) when "packages" and $idx != 0;
 	
-		#$self->classes->_entry($self->main, sub {  }) when "classes";
-		$self->categories->_entry($self->main, sub {  }) when "categories";
-		#$self->methods->_entry($self->main, sub {  }) when "methods";
-	}
+	$self->packages->_entry($self->main, sub {
+		$self->packages->rename_element($idx, $jinnee->package_rename(shift, $self->packages->sel));
+	}) if $type eq "packages" and $idx != 0;
+
+	$self->categories->_entry($self->main, sub {
+		$self->categories->rename_element($idx, $jinnee->category_rename(shift, $self->categories->sel));
+	}) if $type eq "categories" and $idx != 0;
+	
+	$self->main->area->goto("1.end") if $type =~ /classes|methods/;
 }
 
 # удалить текущий объект
@@ -223,12 +242,12 @@ sub delete_action {
 	my ($self) = @_;
 	my $jinnee = $self->main->jinnee;
 	my ($type, $idx) = $self->who;
-	given($type) {
-		$jinnee->package_erase($self->packages->sel), $self->packages->delete($idx) when "packages";
-		$jinnee->class_erase($self->classes->sel), $self->classes->delete($idx) when "classes";
-		$jinnee->category_erase($self->categories->sel), $self->categories->delete($idx) when "categories";
-		$jinnee->method_erase($self->methods->sel), $self->methods->delete($idx) when "methods";
-	}
+	
+	$jinnee->package_erase($self->packages->sel), $self->packages->delete($idx), $self->packages->select_element($idx), $self->package_select if $type eq "packages" and $idx != 0;
+	$jinnee->class_erase($self->classes->sel), $self->classes->delete($idx), $self->main->area->disable if $type eq "classes";
+	$jinnee->category_erase($self->categories->sel), $self->categories->delete($idx), $self->categories->select_element($idx), $self->category_select if $type eq "categories" and $idx != 0;
+	$jinnee->method_erase($self->methods->sel), $self->methods->delete($idx), $self->main->area->disable if $type eq "methods";
+
 }
 
 1;

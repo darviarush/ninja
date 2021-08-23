@@ -187,17 +187,48 @@ sub package_new {
 	my ($self, $name) = @_;
 	my $path = $self->{INC}[$#{$self->{INC}[0]}] . "/$name";
 	_mkpath("$path/");
-	die "Невозможно создать пакет $name ($path): $!" if !-e $path;	
+	die "Невозможно создать пакет $name ($path): $!" if !-e $path;
 	return {name => $name, path => $path};
 }
 
 sub package_rename {
-	my ($self, $package, $name) = @_;
+	my ($self, $name, $package) = @_;
 	my $path = $package->{path};
 	$path =~ s![^/]*$!$name!;
 	rename $package->{path}, $path or die "Невозможно переименовать $package->{path} -> $path: $!";
 	return {name => $name, path => $path};
 }
+
+sub class_new {
+	my ($self, $name, $package) = @_;
+	my $class = {name => $name, path => "$package->{path}/$name"};
+	$self->class_get($class);
+	$class
+}
+
+sub category_new {
+	my ($self, $name, $class) = @_;
+	my $path = "$class->{path}/$name";
+	_mkpath("$path/");
+	die "Невозможно создать категорию $name ($path): $!" if !-e $path;
+	return {name => $name, path => $path};
+}
+
+sub category_rename {
+	my ($self, $name, $category) = @_;
+	my $path = $category->{path};
+	$path =~ s![^/]*$!$name!;
+	rename $category->{path}, $path or die "Невозможно переименовать $category->{path} -> $path: $!";
+	return {name => $name, path => $path};
+}
+
+sub method_new {
+	my ($self, $category, $name) = @_;
+	my $class = {name => $name, path => "$category->{path}/$name"};
+	$self->method_get($class);
+	$class
+}
+
 
 # Компилирует метод и вставляет его в файл с классом
 sub method_compile {
@@ -222,6 +253,10 @@ sub category_erase {
 	_rmtree($category->{path});
 }
 
+sub method_erase {
+	my ($self, $method) = @_;
+	_rmtree($method->{path});
+}
 
 #@category Синтаксис
 
@@ -247,6 +282,8 @@ sub tags {
 		
 		punct => [-foreground => '#00008B'],
 		remark => [-foreground => '#696969'],
+		
+		error => [-background => '#FF0000'],
 	}
 }
 
@@ -295,12 +332,16 @@ sub color {
 	while($text =~ /$re/go) {
 		my $point = length $`;
 		if($point - $prev != 0) {
-			push @$ret, [substr $`, $prev, $point];
+			push @$ret, [substr($`, $prev, $point), "error"];
 		}
 		$prev = $point + length $&;
 		
 		my ($tag, $lexem) = each %+;
 		push @$ret, [$lexem, $tag !~ /^(newline|space)$/n? $tag: ()];
+	}
+	
+	if($prev != length $text) {
+		push @$ret, [substr($text, $prev), "error"];
 	}
 	
 	$ret
