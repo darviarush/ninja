@@ -30,3 +30,7 @@ sub msga (@) {
 	p @_;
 	@_
 }
+
+sub trace {
+	print Carp::longmess(@_), "\n\n";
+}

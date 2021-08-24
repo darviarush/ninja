@@ -20,10 +20,25 @@ sub new {
 #A package_list r
 #^A inc -> x |map "$x/*" glob ++ "$x/*" glob -> n |if n !~ /\/\.{1,2}\z/ |map n slice 1 + x% |if n ~ /$r/i
 
+sub _ls {
+	my ($path) = @_;
+	
+	opendir my $dir, $path or die "Не открыть `$path`: $!";
+	my @ls;
+	while(defined(my $file = readdir $dir)) {
+		utf8::decode($file) if !utf8::is_utf8($file);
+		
+		push @ls, "$path/$file" if $file ne "." and $file ne "..";
+	}
+	closedir $dir;
+	
+	return @ls;
+}
+
 sub ls($) {
 	my ($path) = @_;
 
-	return @{[(grep { !/\/(\.{1,2}|\.\$)\z/ } <"$path/.*">), <"$path/*">]};
+	return @{[grep { !/\/\.\$\z/ } _ls($path)]};
 }
 
 
@@ -39,8 +54,6 @@ sub package_list {
 # список классов в указанном пакете
 sub class_list {
 	my ($self, $re, $package) = @_;
-	
-	$self->class_get({name=>"", path=>"$package->{path}/-"}) if !$package->{all} && ls($package->{path}) == 0;
 	
 	grep { /$re/i }	
 	map { my $path = $_;
@@ -72,7 +85,7 @@ sub method_list {
 	map { my $path = $_;
 		map { 
 			+{ path => $_, name => substr $_, 1+length($path), -2 }
-		} (grep { !/\/\.{1,2}\z/ } <"$path/.*">), <"$path/*">
+		} grep { /\.\$\z/ } _ls($path)
 	} $category->{all}? ls $category->{path}: $category->{path}
 }
 
@@ -109,11 +122,6 @@ sub _load {
 		::p my $x="_create $path";
 		$template
 	}
-}
-
-sub _ls {
-	my ($path) = @_;
-	return (grep { !/\/\.{1,2}\z/ } <"$path/.*">), <"$path/*">;
 }
 
 sub _rmtree {
@@ -155,8 +163,6 @@ sub class_put {
 		rename $class->{path}, $path and do {
 			$class = {name => $name, path => $path};
 		};
-	} else {
-		$class = {%$class, name => "-"};
 	}
 	
 	return $class, $self->color($body);
@@ -170,14 +176,12 @@ sub method_put {
 	if($body =~ /^\S.*/) {
 		my $name = $&;
 		my $path = $method->{path};
-		$path =~ s!$method->{name}$!$name!;
+		$path =~ s!$method->{name}(\.\$)$!$name$1!;
 		rename $method->{path}, $path and do {
 			$method = {name => $name, path => $path};
 		};
-	} else {
-		$method = {%$method, name => "-"};
 	}
-	
+
 	return $method, $self->color($body);
 }
 
@@ -223,8 +227,8 @@ sub category_rename {
 }
 
 sub method_new {
-	my ($self, $category, $name) = @_;
-	my $class = {name => $name, path => "$category->{path}/$name"};
+	my ($self, $name, $category) = @_;
+	my $class = {name => $name, path => "$category->{path}/$name.\$"};
 	$self->method_get($class);
 	$class
 }
