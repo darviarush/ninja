@@ -113,10 +113,10 @@ sub _load {
 	my $f;
 	
 	
-	open $f, "<", $path and do { read $f, my $buf, -s $f; close $f; $buf }
+	open $f, "<:utf8", $path and do { read $f, my $buf, -s $f; close $f; $buf }
 	or do { # если $buf выше будет пустой, то выполнится и эта ветвь
 		_mkpath($path);
-		open $f, ">", $path or die "Не могу создать `$path`. Причина: $!";
+		open $f, ">:utf8", $path or die "Не могу создать `$path`. Причина: $!";
 		print $f $template;
 		close $f;
 		::p my $x="_create $path";
@@ -273,6 +273,8 @@ sub tags {
 		
 		variable => [-foreground => '#008080'],
 		class => [-foreground => '#C71585'],
+		method => [-foreground => '#1E90FF'],
+		unary => [-foreground => '#BC8F8F'],
 		
 		operator => [-foreground => '#8B0000'],
 		prefix => [-foreground => '#008080'],
@@ -285,7 +287,7 @@ sub tags {
 		brace => [-foreground => '#00008B'],
 		
 		punct => [-foreground => '#00008B'],
-		remark => [-foreground => '#696969'],
+		remark => [-foreground => '#696969', -relief => 'raised'],
 		
 		error => [-background => '#FF0000'],
 	}
@@ -305,7 +307,7 @@ sub color {
 	my $prev = 0;
 	my $ret = [];
 
-	my $re_op = '[-+*/^%$!<>=.:,;|&\\#]';
+	my $re_op = '[-+*/^%$?!<>=.:,;|&\\#]';
 
 	my $re = qr{
 		(?<remark> ([\ \t]|^) \# .* ) |
@@ -316,7 +318,7 @@ sub color {
 		(?<class> \b [A-Z]\w+ \b) |
 		(?<variable> \b [a-zA-Z] \b) |
 		
-		
+		(?<method> \b [a-z]\w+ \b) |
 		
 		(?<logic_operator> \b (not|and|or) \b ) |
 		(?<compare_operator> [<>=]$re_op* ) |
@@ -327,8 +329,6 @@ sub color {
 		(?<brace> [{}] ) |
 		
 		(?<punct> [|,;] ) |
-		
-		
 		
 		(?<newline> \n ) |
 		(?<space> \s+ )
@@ -341,12 +341,28 @@ sub color {
 		$prev = $point + length $&;
 		
 		my ($tag, $lexem) = each %+;
-		push @$ret, [$lexem, $tag !~ /^(newline|space)$/n? $tag: ()];
+		push @$ret, [$lexem, $tag];
 	}
 	
 	if($prev != length $text) {
 		push @$ret, [substr($text, $prev), "error"];
 	}
+	
+	my $i = 0;
+	for my $x ( @$ret ) {
+		$i++;
+		my $next = @$ret == $i? undef: $ret->[$i][1] eq "space"? $ret->[$i+1]: $ret->[$i];
+		
+		$x->[1] = "unary" if $x->[1] eq "method" && (
+			!$next
+			|| $next->[1] =~ /^(method|newline)\z/n 
+			|| $next->[0] =~ /^[\)\]\}]\z/n
+		);
+		
+		@$x = $x->[0] if $x->[1] =~ /^(newline|space)$/n;
+	}
+	
+	
 	
 	$ret
 }

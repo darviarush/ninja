@@ -1,0 +1,5 @@
+a main
+
+10 print
+"Я - строка" printTo a stderr
+
