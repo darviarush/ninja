@@ -269,11 +269,11 @@ sub tags {
 	
 	+{
 		number => [-foreground => '#8A2BE2'],
-		string => [-foreground => '#1E90FF'],
+		string => [-foreground => '#008B8B'],
 		
-		variable => [-foreground => '#008080'],
+		variable => [-foreground => '#C71585'],
 		class => [-foreground => '#C71585'],
-		method => [-foreground => '#008B8B'],
+		method => [-foreground => '#4169E1'],
 		unary => [-foreground => '#BC8F8F'],
 		
 		operator => [-foreground => '#8B0000'],
