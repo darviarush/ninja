@@ -273,7 +273,7 @@ sub tags {
 		
 		variable => [-foreground => '#008080'],
 		class => [-foreground => '#C71585'],
-		method => [-foreground => '#1E90FF'],
+		method => [-foreground => '#008B8B'],
 		unary => [-foreground => '#BC8F8F'],
 		
 		operator => [-foreground => '#8B0000'],
