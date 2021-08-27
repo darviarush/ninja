@@ -3,6 +3,7 @@ package Jinnee;
 
 use common::sense;
 
+use parent 'Ninja::Role::Jinnee';
 
 sub new {
 	my $cls = shift;
@@ -20,132 +21,54 @@ sub new {
 #A package_list r
 #^A inc -> x |map "$x/*" glob ++ "$x/*" glob -> n |if n !~ /\/\.{1,2}\z/ |map n slice 1 + x% |if n ~ /$r/i
 
-sub _ls {
-	my ($path) = @_;
-	
-	opendir my $dir, $path or die "Не открыть `$path`: $!";
-	my @ls;
-	while(defined(my $file = readdir $dir)) {
-		utf8::decode($file) if !utf8::is_utf8($file);
-		
-		push @ls, "$path/$file" if $file ne "." and $file ne "..";
-	}
-	closedir $dir;
-	
-	return @ls;
-}
-
-sub ls($) {
-	my ($path) = @_;
-
-	return @{[grep { !/\/\.\$\z/ } _ls($path)]};
-}
-
-
 # список пакетов соответствующих фильтру
 sub package_list {
-	my ($self, $re) = @_;
-	return +{name => "*", all => 1},
-		grep { /$re/i } map { my $x=$_; map {
-			+{ path => $_, name => substr $_, 1+length $x }
-		} ls $_ } @{$self->{INC}}
+	my ($self) = @_;
+		
+	map { my $inc=$_; 
+		map { +{ path => $_, name => substr $_, 1+length $inc } } $self->ls($inc)
+	} @{$self->{INC}}
 }
 
 # список классов в указанном пакете
 sub class_list {
-	my ($self, $re, $package) = @_;
+	my ($self, $package) = @_;
 	
-	grep { /$re/i }	
 	map { my $path = $_;
-		map {
-			+{ path => $_, name => substr $_, 1+length $path }
-		} ls $path
-	} $package->{all}? (map { ls $_ } @{$self->{INC}}): $package->{path}
+		map { +{ path => $_, name => substr $_, 1+length $path } } $self->ls($path)
+	} $package->{all}? (map { $self->ls($_) } @{$self->{INC}}): $package->{path}
 }
 
 # список категорий
 sub category_list {
-	my ($self, $re, $class) = @_;
+	my ($self, $class) = @_;
 	
 	my $path = $class->{path};
 	
-	return +{name => "*", path => $class->{path}, all => 1},
-	grep { /$re/i }	map {
-		+{ path => $_, name => substr $_, 1+length $path }
-	} ls $path
+	map { +{ path => $_, name => substr $_, 1+length $path } } grep { !/\/\.\$\z/ } $self->ls($path)
 }
 
 # список методов. $category может быть '*'
 sub method_list {
-	my ($self, $re, $category) = @_;
+	my ($self, $category) = @_;
 	
-	my $path = $category->{path};
-	
-	grep { /$re/i }	
 	map { my $path = $_;
-		map { 
-			+{ path => $_, name => substr $_, 1+length($path), -2 }
-		} grep { /\.\$\z/ } _ls($path)
-	} $category->{all}? ls $category->{path}: $category->{path}
+		map { +{ path => $_, name => substr $_, 1+length($path), -2 } } $self->ls($path)
+	} $category->{all}? (grep { !/\/\.\$\z/ } $self->ls($category->{path})): $category->{path}
 }
-
-
-
-
-#@category Файлы
-
-sub _mkpath {
-	my ($path) = @_;
-	mkdir $`, 0755 while $path =~ /\//g;
-}
-
-sub _save {
-	my ($path, $body) = @_;
-	my $f;
-	open $f, ">", $path or die "Не могу создать `$path`. Причина: $!";
-	print $f $body;
-	close $f;
-}
-
-# подгружает или создаёт файл
-sub _load {
-	my ($path, $template) = @_;
-	my $f;
-	
-	
-	open $f, "<:utf8", $path and do { read $f, my $buf, -s $f; close $f; $buf }
-	or do { # если $buf выше будет пустой, то выполнится и эта ветвь
-		_mkpath($path);
-		open $f, ">:utf8", $path or die "Не могу создать `$path`. Причина: $!";
-		print $f $template;
-		close $f;
-		::p my $x="_create $path";
-		$template
-	}
-}
-
-sub _rmtree {
-	my ($path) = @_;
-	
-	unlink($path) || die("Нельзя удалить файл `$path`. Причина: $!"), return if !-d $path;
-	
-	_rmtree($_) for _ls($path);
-	rmdir $path;
-}
-
 
 #@category Читатели
 
 # возвращает тело класса
 sub class_get {
 	my ($self, $class) = @_;
-	return 1, $self->color( _load("$class->{path}/.\$", "Nil subclass $class->{name}\n\n") );
+	return 1, $self->color( $self->file_load("$class->{path}/.\$", "Nil subclass $class->{name}\n\n") );
 }
 
 # Возвращает тело метода раскрашенное разными цветами
 sub method_get {
 	my ($self, $method) = @_;
-	return 1, $self->color( _load("$method->{path}", "$method->{name}\n\n") );
+	return 1, $self->color( $self->file_load("$method->{path}", "$method->{name}\n\n") );
 }
 
 
@@ -154,7 +77,7 @@ sub method_get {
 # сохраняет и возвращает раскрашенным тело класса
 sub class_put {
 	my ($self, $class, $body) = @_;
-	_save("$class->{path}/.\$", $body);
+	$self->file_save("$class->{path}/.\$", $body);
 	
 	if($body =~ /^\w+ subclass ([A-Z]\w+)/) {
 		my $name = $1;
@@ -171,7 +94,7 @@ sub class_put {
 # Сохраняет тело метода
 sub method_put {
 	my ($self, $method, $body) = @_;
-	_save("$method->{path}", $body);
+	$self->file_save("$method->{path}", $body);
 	
 	if($body =~ /^\S.*/) {
 		my $name = $&;
@@ -190,7 +113,7 @@ sub method_put {
 sub package_new {
 	my ($self, $name) = @_;
 	my $path = $self->{INC}[$#{$self->{INC}[0]}] . "/$name";
-	_mkpath("$path/");
+	$self->mkpath("$path/");
 	die "Невозможно создать пакет $name ($path): $!" if !-e $path;
 	return {name => $name, path => $path};
 }
@@ -213,7 +136,7 @@ sub class_new {
 sub category_new {
 	my ($self, $name, $class) = @_;
 	my $path = "$class->{path}/$name";
-	_mkpath("$path/");
+	$self->mkpath("$path/");
 	die "Невозможно создать категорию $name ($path): $!" if !-e $path;
 	return {name => $name, path => $path};
 }
@@ -244,22 +167,22 @@ sub method_compile {
 
 sub package_erase {
 	my ($self, $package) = @_;
-	_rmtree($package->{path});
+	$self->rmtree($package->{path});
 }
 
 sub class_erase {
 	my ($self, $class) = @_;
-	_rmtree($class->{path});
+	$self->rmtree($class->{path});
 }
 
 sub category_erase {
 	my ($self, $category) = @_;
-	_rmtree($category->{path});
+	$self->rmtree($category->{path});
 }
 
 sub method_erase {
 	my ($self, $method) = @_;
-	_rmtree($method->{path});
+	$self->rmtree($method->{path});
 }
 
 #@category Синтаксис

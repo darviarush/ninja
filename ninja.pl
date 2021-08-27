@@ -14,10 +14,12 @@ $SIG{__DIE__} = sub { print Carp::longmess(@_) };
 use lib 'lib';
 use Ninja::MainWindow;
 
-use Jinnee;
+#my $class_lang = "Jinnee";
+my $class_lang = "Ninja::Jinnee::Perl";
+eval "require $class_lang";
+die $@ if $@;
 
-
-Ninja::MainWindow->new(jinnee => Jinnee->new)->construct;
+Ninja::MainWindow->new(jinnee => $class_lang->new)->construct;
 
 sub msg (@) {
 	my $x=shift;

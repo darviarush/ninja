@@ -138,7 +138,8 @@ package Tk::Listbox {
 # событие инициализации пакетов
 sub packages_init {
 	my ($self) = @_;
-	$self->packages->replace($self->main->jinnee->package_list($self->package_filter->get));
+	my $re = $self->package_filter->get;
+	$self->packages->replace(grep { $_->{name} =~ /$re/i } +{name => "*", all => 1}, $self->main->jinnee->package_list);
 	$self
 }
 
@@ -149,7 +150,8 @@ sub package_select {
 	
 	$self->packages_init, $self->packages->select_element(0) if $package->{name} eq "*";
 	
-	$self->classes->replace($self->main->jinnee->class_list($self->class_filter->get, $package));
+	my $re = $self->class_filter->get;
+	$self->classes->replace(grep { $_->{name} =~ /$re/i } $self->main->jinnee->class_list($package));
 	$self->categories->replace;
 	$self->methods->replace;
 	$self->main->area->disable;
@@ -160,14 +162,17 @@ sub class_select {
 	
 	$self->new_action_class(-1), return if !@{$self->classes->list};
 	
-	$self->categories->replace($self->main->jinnee->category_list($self->category_filter->get, $self->classes->sel));
+	my $class = $self->classes->sel;
+	my $re = $self->category_filter->get;
+	$self->categories->replace(grep { $_->{name} =~ /$re/i } +{name => "*", path => $class->{path}, all => 1}, $self->main->jinnee->category_list($class));
 	$self->methods->replace;
 	$self->main->area->to_class($self->classes->sel);
 }
 
 sub category_select {
 	my ($self) = @_;
-	$self->methods->replace( $self->main->jinnee->method_list($self->method_filter->get, $self->categories->sel) );
+	my $re = $self->method_filter->get;
+	$self->methods->replace(grep { $_->{name} =~ /$re/i } $self->main->jinnee->method_list($self->categories->sel));
 	$self->main->area->disable;
 }
 
