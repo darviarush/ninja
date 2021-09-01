@@ -14,8 +14,8 @@ $SIG{__DIE__} = sub { print Carp::longmess(@_) };
 use lib 'lib';
 use Ninja::MainWindow;
 
-#my $class_lang = "Jinnee";
-my $class_lang = "Ninja::Jinnee::Perl";
+my $class_lang = "Jinnee";
+#my $class_lang = "Ninja::Jinnee::Perl";
 eval "require $class_lang";
 die $@ if $@;
 

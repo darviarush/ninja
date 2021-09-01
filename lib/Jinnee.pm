@@ -224,9 +224,9 @@ sub tags {
 	    # -slant => 'italic'
     # ],
 
-sub color {
+sub lex {
 	my ($self, $text) = @_;
-
+	
 	my $prev = 0;
 	my $ret = [];
 
@@ -254,9 +254,9 @@ sub color {
 		(?<punct> [|,;] ) |
 		
 		(?<newline> \n ) |
-		(?<space> \s+ )
+		(?<space> [\t\ ]+ )
 	}xmn;
-	while($text =~ /$re/go) {
+	while($text =~ /$re/g) {
 		my $point = length $`;
 		if($point - $prev != 0) {
 			push @$ret, [substr($`, $prev, $point), "error"];
@@ -274,20 +274,46 @@ sub color {
 	my $i = 0;
 	for my $x ( @$ret ) {
 		$i++;
-		my $next = @$ret == $i? undef: $ret->[$i][1] eq "space"? $ret->[$i+1]: $ret->[$i];
+		my $next = $ret->[$i];
+		$next = $ret->[$i+1] if $next && $next->[1] eq "space";
 		
 		$x->[1] = "unary" if $x->[1] eq "method" && (
 			!$next
-			|| $next->[1] =~ /^(method|newline)\z/n 
+			|| $next->[1] =~ /^(method|newline)\z/n
 			|| $next->[0] =~ /^[\)\]\}]\z/n
 		);
-		
+	}
+	
+	return $ret;
+}
+
+sub color {
+	my ($self, $text) = @_;
+
+	my $ret = $self->lex($text);
+	
+	for my $x ( @$ret ) {
 		@$x = $x->[0] if $x->[1] =~ /^(newline|space)$/n;
 	}
 	
-	
-	
 	$ret
 }
+
+
+#@category Компилляция
+
+# компиллирует метод
+sub compile {
+	my ($self, $text) = @_;
+	
+	my $ret = $self->lex($text);
+	
+	# 1. убираем пробелы и строки перед методами и закрывающими скобками
+	# 2. строим дерево опираясь на скобки
+	# 3. внутри скобок производим
+	
+	$self
+}
+
 
 1;
