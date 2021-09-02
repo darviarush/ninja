@@ -309,8 +309,59 @@ sub compile {
 	my $ret = $self->lex($text);
 	
 	# 1. убираем пробелы и строки перед методами и закрывающими скобками
+	my $line = 1;
+	my $char = 1;
+	my @R = grep { $_->{type} ne "space" } map {
+		
+		my $lex = {
+			line => $line,
+			char => $char,
+			lex => $_->[0],
+			type => $_->[1],
+		};
+
+		$char += length $_->[0];
+
+		$line++, $char = 1 if $_->[1] eq "newline";
+
+		$lex
+	} @$ret;
+	
+	for(my $i=0; $i<@R; $i++) {
+		splice @R, $i+1, 1 if $R[$i]{lex} =~ /^[\{\[\(]\z/ && $i+1<@R && $R[$i+1]{type} eq "newline";
+		splice @R, $i, 1 if $R[$i]{type} eq "newline" && $i+1<@R && $R[$i+1]{lex} =~ /^[\}\]\)]\z/;
+	}
+	
 	# 2. строим дерево опираясь на скобки
-	# 3. внутри скобок производим
+	my @S = my $root = [];
+	my @I = $root; # множество скобок
+	for my $r (@R) {
+		if($r->{lex} =~ /^[\{\[\(]\z/) { push @S, my $x=[]; push @I, $x }
+		elsif($r->{lex} =~ /^[\}\]\)]\z/) { pop @S }
+		else { push @{$S[$#S]}, $r }
+	}
+	
+	# 3. внутри скобок производим ранжировку по операторам
+	my $i = -1;
+	my %op = map { $i++; map { ($_ => $i) } grep {$_} split /\s+/, $_ } grep {$_} split /\n/, "
+		^
+		* /
+		+ -
+		method
+		< > =
+		not
+		and
+		or
+		!
+		$
+		~
+		&
+		|
+	";
+	
+	for my $s (@I) {
+		
+	}
 	
 	$self
 }
