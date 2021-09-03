@@ -193,8 +193,10 @@ sub tags {
 	+{
 		number => [-foreground => '#8A2BE2'],
 		string => [-foreground => '#008B8B'],
+		code => [-foreground => '#ff1493'],
 		
 		variable => [-foreground => '#C71585'],
+		attribute => [-foreground => '#C71585'],
 		class => [-foreground => '#C71585'],
 		method => [-foreground => '#4169E1'],
 		unary => [-foreground => '#BC8F8F'],
@@ -236,15 +238,16 @@ sub lex {
 		(?<remark> ([\ \t]|^) \# .* ) |
 		
 		(?<number> [+-]?\d+(\.\d+)? ) |
-		(?<string> "(\\"|.)*" | '(\\'|.)*' ) |
+		(?<string> "(\\"|[^"])*" | '(\\'|[^'])*' ) |
+		(?<code> `(\\`|[^`])*` ) |
 		
 		(?<class> \b [A-Z]\w+ \b) |
 		(?<variable> \b [a-zA-Z] \b) |
-		
-		(?<method> \b [a-z]\w+ \b) |
+		(?<attribute> \b _ [a-z]\w+ \b) |
 		
 		(?<logic_operator> \b (not|and|or) \b ) |
-		(?<compare_operator> [<>=]$re_op* ) |
+		(?<method> \b [a-z]\w+ \b) |
+		
 		(?<operator> $re_op+ ) |
 		
 		(?<staple> [()] ) |

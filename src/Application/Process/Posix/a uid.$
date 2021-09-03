@@ -1,0 +1,4 @@
+a uid
+`#include <unistd.h>` header
+^`getuid()` as Integer
+
