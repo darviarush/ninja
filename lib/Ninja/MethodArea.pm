@@ -18,19 +18,14 @@ sub construct {
 	my ($self) = @_;
 
 	$self->area->bind("<KeyRelease>" => sub { $self->update });
-	#$self->area->bind("<Control-a>" => ;
-	# $self->area->bind("<Control-c>" => sub { $self->area->eventGenerate("<<Copy>>") });
-	# $self->area->bind("<Control-v>" => sub { $self->area->eventGenerate("<<Paste>>") });
-	# $self->area->bind("<Control-x>" => sub { $self->area->eventGenerate("<<Cut>>") });
-
-	# $self->area->bind("<Control-Insert>" => sub { $self->area->eventGenerate("<Control-c>") });
-	# $self->area->bind("<Shift-Insert>" => sub { $self->area->eventGenerate("<Control-v>") });
 
 	my $tags = $self->main->jinnee->tags;
 
 	$self->area->tagConfigure($_ => @{$tags->{$_}}) for keys %$tags;
-	
-	::msg("x", $self->area->{bindtags});
+
+	# удаляем дефолтный обработчик:
+	$self->area->bind('Tk::Text', '<Control-d>' => sub {});
+	$self->area->bind('Tk::Text', '<Insert>' => sub {});
 
 	$self
 }
@@ -140,6 +135,7 @@ sub select_all {
 sub dup_line_action {
 	my ($self) = @_;
 	my ($n, $c) = $self->pos;
+	
 	$self->area->insert("$n.end", "\n" . $self->area->get("$n.0", "$n.end"));
 }
 

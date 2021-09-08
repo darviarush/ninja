@@ -6,4 +6,3 @@ Nil subclass Application
 
 argv = Array of String
 environ = Map of String
-
