@@ -235,10 +235,13 @@ sub lex {
 	my $re_op = '[-+*/^%$?!<>=.:,;|&\\#]';
 
 	my $re = qr{
-		(?<remark> ([\ \t]|^) \# .* ) |
+		(?<remark> ([\ \t]|^) \# [^\n]* ) |
 		
 		(?<number> [+-]?\d+(\.\d+)? ) |
-		(?<string> "(\\"|[^"])*" | '(\\'|[^'])*' ) |
+		(?<string>
+			  """ (.*?) """ | ''' (.*?) '''
+			| "(\\"|[^"])*" | '(\\'|[^'])*' 
+		) |
 		(?<code> `(\\`|[^`])*` ) |
 		
 		(?<class> \b [A-Z]\w+ \b) |
@@ -258,7 +261,7 @@ sub lex {
 		
 		(?<newline> \n ) |
 		(?<space> [\t\ ]+ )
-	}xmn;
+	}xmsn;
 	while($text =~ /$re/g) {
 		my $point = length $`;
 		if($point - $prev != 0) {
@@ -345,7 +348,7 @@ sub compile {
 	}
 	
 	# 3. внутри скобок производим ранжировку по операторам
-	my $i = -1;
+	my $i = 0;
 	my %op = map { $i++; map { ($_ => $i) } grep {$_} split /\s+/, $_ } grep {$_} split /\n/, "
 		^
 		* /
@@ -362,7 +365,10 @@ sub compile {
 		|
 	";
 	
+	@S = ();
 	for my $s (@I) {
+		my $prio = ref $s eq "ARRAY"? 0: $op{$s->{lex}};
+		
 		
 	}
 	

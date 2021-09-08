@@ -29,6 +29,8 @@ sub construct {
 	my $tags = $self->main->jinnee->tags;
 
 	$self->area->tagConfigure($_ => @{$tags->{$_}}) for keys %$tags;
+	
+	print $self->area->bindDump;
 
 	$self
 }
@@ -130,8 +132,22 @@ sub to_method {
 
 sub select_all { 
 	my ($self) = @_;
-	$self->area->SetCursor('end'); 
-	$self->area->tagAdd('sel', '1.0', "end"); 
+	#$self->area->SetCursor('end'); 
+	#$self->area->tagAdd('sel', '1.0', "end"); 
+	$self->area->selectAll;
+}
+
+sub dup_line_action {
+	my ($self) = @_;
+	my ($n, $c) = $self->pos;
+	$self->area->insert("$n.end", "\n" . $self->area->get("$n.0", "$n.end"));
+}
+
+# получить текущую строку
+sub get_current_line {
+	my ($self) = @_;
+	my ($n, $c) = $self->pos;
+	$self->area->get("$n.0", "$n.end")
 }
 
 # переставляет курсор
@@ -141,6 +157,13 @@ sub goto {
 	$self->area->focus;
 	$self->show_pos;
 	$self
+}
+
+# посиция курсора
+sub pos {
+	my ($self) = @_;
+	my $pos = $self->area->index('insert');
+	wantarray? split(/\./, $pos): $pos;
 }
 
 # показывает позицию курсора в тулбаре

@@ -22,6 +22,8 @@ sub classes { shift()->{classes} }
 sub categories { shift()->{categories} }
 sub methods { shift()->{methods} }
 sub main { shift()->{main} }
+sub sections { return qw/packages classes categories methods/ }
+sub singular { return qw/package class category method/ }
 
 # создать selector_boxes
 sub construct {
@@ -46,9 +48,6 @@ sub construct {
 
 	$class_filter->bind("<KeyRelease>" => sub { $self->package_select });
 	$packages->bind("<<ListboxSelect>>" => sub { $self->package_select });
-	
-	$packages->select_element(0); $self->package_select;
-
 
 	$category_filter->bind("<KeyRelease>" => sub { $self->class_select });
 	$self->classes->bind("<<ListboxSelect>>" => sub { $self->class_select });
@@ -60,6 +59,27 @@ sub construct {
 
 	$methods->bind("<<ListboxSelect>>" => sub { $self->method_select });
 
+	my $project = $self->main->project;
+	if($project) {
+		my $i;
+		for my $section ($self->sections) {
+			my $sec;
+			my $singular = ($self->singular)[$i];
+			if(@{$sec = $project->{selectors}->{$singular}}) {
+				last if @{$self->{$section}->list} <= $sec->[0];
+				$self->{$section}->select_element($sec->[0]);
+				my $meth = "${singular}_select";
+				$self->$meth;
+			}
+			$i++;
+		}
+		
+		
+	}
+	else {
+		$packages->select_element(0); $self->package_select;
+	}
+	
 	
 	$self
 }
@@ -145,7 +165,7 @@ sub packages_init {
 
 # событие на выбор пакета
 sub package_select {
-	my ($self) = @_;	
+	my ($self) = @_;
 	my $package = $self->packages->sel;
 	
 	$self->packages_init, $self->packages->select_element(0) if $package->{name} eq "*";
@@ -155,6 +175,9 @@ sub package_select {
 	$self->categories->replace;
 	$self->methods->replace;
 	$self->main->area->disable;
+	
+	$self->{section} = "packages";
+	$self
 }
 
 sub class_select {
@@ -167,6 +190,9 @@ sub class_select {
 	$self->categories->replace(grep { $_->{name} =~ /$re/i } +{name => "*", path => $class->{path}, all => 1}, $self->main->jinnee->category_list($class));
 	$self->methods->replace;
 	$self->main->area->to_class($self->classes->sel);
+	
+	$self->{section} = "classes";
+	$self
 }
 
 sub category_select {
@@ -174,6 +200,8 @@ sub category_select {
 	my $re = $self->method_filter->get;
 	$self->methods->replace(grep { $_->{name} =~ /$re/i } $self->main->jinnee->method_list($self->categories->sel));
 	$self->main->area->disable;
+	$self->{section} = "categories";
+	$self
 }
 
 sub method_select {
@@ -182,6 +210,9 @@ sub method_select {
 	$self->new_action_method(-1), return if !@{$self->methods->list};
 	
 	$self->main->area->to_method($self->methods->sel);
+	
+	$self->{section} = "methods";
+	$self
 }
 
 #@category actions
@@ -189,16 +220,8 @@ sub method_select {
 # что выбрано в текущий момент
 sub who {
 	my ($self) = @_;
-	
-	my $sel_pkg = $self->packages->curselection;
-	my $sel_cls = $self->classes->curselection;
-	my $sel_cat = $self->categories->curselection;
-	my $sel_met = $self->methods->curselection;
-	
-	return "packages", $sel_pkg->[0] if @$sel_pkg && !@$sel_cls;
-	return "classes", $sel_cls->[0] if @$sel_cls && !@$sel_cat;	
-	return "categories", $sel_cat->[0] if @$sel_cat && !@$sel_met;
-	return "methods", $sel_met->[0] if @$sel_met;
+	my $section = $self->{section};	
+	return $section, $self->$section->curselection->[0];
 }
 
 sub new_action_class {

@@ -21,6 +21,7 @@ sub new {
 }
 
 sub config { shift()->{config} }
+sub project { my ($self) = @_; $self->{config}->{project}->{$self->pwd} }
 sub root { shift()->{root} }
 sub selectors { shift()->{selectors} }
 sub jinnee { shift()->{jinnee} }
@@ -141,11 +142,28 @@ sub close {
 		$self->selectors->{method_filter}->get,
 	];
 	
+	my ($section, $idx) = $self->selectors->who;
+	$config->{project}{$self->pwd} = {
+		selectors => {
+			package => scalar $self->selectors->packages->curselection,
+			class => scalar $self->selectors->classes->curselection,
+			category => scalar $self->selectors->categories->curselection,
+			method => scalar $self->selectors->methods->curselection,
+		}
+	};
+	
+	
 	$self->config->save;
 	$self->root->destroy;
 	
 	$self
 }
+
+sub pwd {
+	use Cwd qw();
+	Cwd::cwd()
+}
+
 
 # sub Tk::Error {
 	# my ($widget,$error,@locations) = @_;

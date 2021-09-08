@@ -37,15 +37,13 @@ sub construct {
 		$self->command('Изменить', "F2", sub { $main->selectors->edit_action });
 		$self->command('Удалить', "F8", sub { $main->selectors->delete_action });
 		$self->top->separator;
-		$self->command('Отменить', "Control-Alt-Z", sub { $main->selectors->history_back_action });
-		$self->command('Применить', "Control-Alt-Y", sub { $main->selectors->history_next_action });
-		$self->top->separator;
-		$self->command('Отменить ввод', "Control-Z", sub { $main->selectors->area_back_action });
-		$self->command('Применить ввод', "Control-Y", sub { $main->selectors->area_next_action });
-		$self->top->separator;
-		$self->command('Найти', "Control-F", sub { $main->selectors->find_action(0, 0) });
-		$self->command('Заменить', "Control-R", sub { $main->selectors->find_action(0, 1) });
-		$self->top->separator;
+		# $self->command('Отменить', "Control-Alt-Z", sub { $main->selectors->history_back_action });
+		# $self->command('Применить', "Control-Alt-Y", sub { $main->selectors->history_next_action });
+		# $self->top->separator;
+		# $self->top->separator;
+		# $self->command('Найти', "Control-F", sub { $main->selectors->find_action(0, 0) });
+		# $self->command('Заменить', "Control-R", sub { $main->selectors->find_action(0, 1) });
+		# $self->top->separator;
 		$self->command('Найти в проекте', "Control-Shift-F", sub { $main->selectors->find_action(1, 1) });
 		$self->command('Заменить в проекте', "Control-Shift-R", sub { $main->selectors->find_action(1, 1) });
 	$self->pop;
@@ -57,6 +55,11 @@ sub construct {
 		$self->command('Вырезать', "Control-x", sub { $main->area->area->eventGenerate("<<Cut>>") });
 		$self->top->separator;
 		$self->command('Выделить всё', "Control-a", sub { $main->area->select_all });
+		$self->top->separator;
+		$self->command('Дублировать строку', "Control-d", sub { $main->area->dup_line_action });
+		$self->top->separator;
+		$self->command('Отменить ввод', "Control-Z", sub { $main->area->back_action });
+		$self->command('Применить ввод', "Control-Y", sub { $main->area->next_action });
 	$self->pop;
 	
 	$self->cascade('Навигация');

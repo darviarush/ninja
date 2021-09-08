@@ -1,6 +1,9 @@
 Nil subclass Application
 
-"Класс описывает приложение"
+"""
+Класс описывает приложение " 
+\"""
 
 argv = Array of String
 environ = Map of String
+
