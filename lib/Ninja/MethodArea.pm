@@ -30,7 +30,7 @@ sub construct {
 
 	$self->area->tagConfigure($_ => @{$tags->{$_}}) for keys %$tags;
 	
-	print $self->area->bindDump;
+	::msg("x", $self->area->{bindtags});
 
 	$self
 }
