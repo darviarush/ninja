@@ -273,7 +273,7 @@ sub lex {
 		$prev = $point + length $&;
 		
 		my ($tag, $lexem) = each %+;
-		$tag = "space", $ident = do { my $s=0; $s += $& eq "\t"? 4: 1 while $lexem =~ /./; $s } if $tag eq "ident";
+		$tag = "space", $ident4 = do { my $s=0; $s += $& eq "\t"? 4: 1 while $lexem =~ /./; $s } if $tag eq "ident";
 		push @$ret, [$lexem, $tag];
 	}
 	
