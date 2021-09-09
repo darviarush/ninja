@@ -232,14 +232,17 @@ sub lex {
 	my $prev = 0;
 	my $ret = [];
 
-	my $re_op = '[-+*/^%$?!<>=.:,;|&\\#]';
+	my $indent4 = 0;
 
-	my $re = qr{
+	while($text =~ m{
 		(?<remark> ([\ \t]|^) \# [^\n]* ) |
 		
 		(?<number> [+-]?\d+(\.\d+)? ) |
 		(?<string>
-			  """ (.*?) """ | ''' (.*?) '''
+
+	-\| [\ \t]*\n ( {$ident4} [^\n]* $ | ^[\ \t]*$ )+
+
+			|  """ (.*?) """ | ''' (.*?) ''' 
 			| "(\\"|[^"])*" | '(\\'|[^'])*' 
 		) |
 		(?<code> `(\\`|[^`])*` ) |
@@ -251,7 +254,7 @@ sub lex {
 		(?<logic_operator> \b (not|and|or) \b ) |
 		(?<method> \b [a-z]\w+ \b) |
 		
-		(?<operator> $re_op+ ) |
+		(?<operator> ([-+*/^%\$?!<>=.:,;|&\\#])+ ) |
 		
 		(?<staple> [()] ) |
 		(?<bracket> [\[\]] ) |
@@ -260,9 +263,9 @@ sub lex {
 		(?<punct> [|,;] ) |
 		
 		(?<newline> \n ) |
+		(?<ident> ^ [\t\ ]+ ) |
 		(?<space> [\t\ ]+ )
-	}xmsn;
-	while($text =~ /$re/g) {
+	}xmsng) {
 		my $point = length $`;
 		if($point - $prev != 0) {
 			push @$ret, [substr($`, $prev, $point), "error"];
@@ -270,6 +273,7 @@ sub lex {
 		$prev = $point + length $&;
 		
 		my ($tag, $lexem) = each %+;
+		$tag = "space", $ident = do { my $s=0; $s += $& eq "\t"? 4: 1 while $lexem =~ /./; $s } if $tag eq "ident";
 		push @$ret, [$lexem, $tag];
 	}
 	
