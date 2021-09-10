@@ -24,8 +24,38 @@ sub construct {
 	$self->area->tagConfigure($_ => @{$tags->{$_}}) for keys %$tags;
 
 	# удаляем дефолтный обработчик:
-	$self->area->bind('Tk::Text', '<Control-d>' => sub {});
-	$self->area->bind('Tk::Text', '<Insert>' => sub {});
+	$self->area->bind('Tk::Text', '<Control-d>' => 'NoOp');
+	$self->area->bind('Tk::Text', '<Insert>' => 'NoOp');
+	
+	# устанавливаем размер табуляции
+	#::msg("x", $self->area->configure("-font")->[4]->measure);
+	#$self->area->configure(-tabs => 4);
+
+	
+	# при установке курсора меняем и позицию в тулбаре
+	my $SetCursor = \&Tk::Text::SetCursor;
+	*Tk::Text::SetCursor = sub {
+		my $w = shift;
+		my $ret = $w->$SetCursor(@_);
+
+		my ($lineno, $colno) = $self->pos;
+		$colno++;
+		$self->main->position->configure(-text => "Line $lineno, Column $colno");
+		
+		$ret
+	};
+
+	# # Слова в utf8 - не выделяет - устраняем баг
+	# *Tk::Text::selectWord = sub {
+		# my ($w) = @_;
+		# my ($n, $c) = $self->pos;
+		# my $s = $self->get_current_line;
+		# pos($s) = $c;
+		# $s =~ /\w*\G\w*/g;
+		# my $from = length $`; my $to = $from + length $&;
+		# ::msg("x", $c, "$n.$from", "$n.$to", $&);
+		# $w->markSet("$n.$from", "$n.$to");
+	# };
 
 	$self
 }
@@ -34,14 +64,12 @@ sub update {
 	my ($self) = @_;
 
 	return $self if $self->area->cget('state') eq 'disabled';
-
-	$self->show_pos;
 	
 	my $text = $self->text;
 	return $self if $text eq $self->{text};
 	$self->{text} = $text;
 	
-	print "<<SAVE>>$text\n";
+	#print "<<SAVE>>$text\n";
 	
 	# получаем колоризированный текст
 	my $put = "$self->{type}_put";
@@ -151,7 +179,6 @@ sub goto {
 	my ($self, $pos) = @_;
 	$self->area->SetCursor($pos);
 	$self->area->focus;
-	$self->show_pos;
 	$self
 }
 
@@ -161,16 +188,5 @@ sub pos {
 	my $pos = $self->area->index('insert');
 	wantarray? split(/\./, $pos): $pos;
 }
-
-# показывает позицию курсора в тулбаре
-sub show_pos {
-	my ($self) = @_;
-	my $pos = $self->area->index('insert');
-	my ($lineno, $colno) = split /\./, $pos;
-	$colno++;
-	$self->main->position->configure(-text => "Line $lineno, Column $colno");
-	$self
-}
-
 
 1;

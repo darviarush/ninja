@@ -232,20 +232,30 @@ sub lex {
 	my $prev = 0;
 	my $ret = [];
 
-	my $indent4 = 0;
+
+	sub calc_indent { my ($lexem) = @_; my $s=0; $s += $& eq "\t"? 4: 1 while $lexem =~ /./g; $s }
+	my $indent4;
+	my $test_manyline = sub {
+		my ($s) = @_;
+		return if calc_indent($s) < $indent4;
+		return 1;
+	};
 
 	while($text =~ m{
+		(?<indent> ^ [\t\ ]* ) |
+		(?<manyline>
+			\|: [\ \t]* \n
+			( ^ [\ \t]* (\n|\z) | (?<mli>[\t\ ]+) (??{ $test_manyline->($+{mli})? qr//: qr/(*FAIL)/ }) [^\n]* (\n|\z) )*
+		) |
+
 		(?<remark> ([\ \t]|^) \# [^\n]* ) |
 		
 		(?<number> [+-]?\d+(\.\d+)? ) |
 		(?<string>
-
-	-\| [\ \t]*\n ( {$ident4} [^\n]* $ | ^[\ \t]*$ )+
-
-			|  """ (.*?) """ | ''' (.*?) ''' 
-			| "(\\"|[^"])*" | '(\\'|[^'])*' 
+			""" (\\"|"(?!"")|[^"])* """(?!") | ''' (\\'|'(?!'')|[^'])* '''(?!')
+			| "(\\"|[^"])*"(?!") | '(\\'|[^'])*'(?!')
 		) |
-		(?<code> `(\\`|[^`])*` ) |
+		(?<code> `(\\`|[^`])*` | ``` (\\`|`(?!``)|[^`])* ```(?!`) ) |
 		
 		(?<class> \b [A-Z]\w+ \b) |
 		(?<variable> \b [a-zA-Z] \b) |
@@ -263,7 +273,6 @@ sub lex {
 		(?<punct> [|,;] ) |
 		
 		(?<newline> \n ) |
-		(?<ident> ^ [\t\ ]+ ) |
 		(?<space> [\t\ ]+ )
 	}xmsng) {
 		my $point = length $`;
@@ -272,8 +281,10 @@ sub lex {
 		}
 		$prev = $point + length $&;
 		
-		my ($tag, $lexem) = each %+;
-		$tag = "space", $ident4 = do { my $s=0; $s += $& eq "\t"? 4: 1 while $lexem =~ /./; $s } if $tag eq "ident";
+		my ($tag, $lexem) = exists $+{manyline}? ("string", $+{manyline}): each %+;
+		
+		$tag = "space", $indent4 = calc_indent($lexem) + 2 if $tag eq "indent";
+		
 		push @$ret, [$lexem, $tag];
 	}
 	
@@ -370,9 +381,10 @@ sub compile {
 	";
 	
 	@S = ();
+	my $prio = sub { my ($s) = @_; ref $s ne "HASH"? 0: $op{$s->{lex}} };
 	for my $s (@I) {
-		my $prio = ref $s eq "ARRAY"? 0: $op{$s->{lex}};
-		
+		my $prio1 = $prio->($s);
+		my $prio2 = @S? $prio->($S[$#S]): 0;
 		
 	}
 	
