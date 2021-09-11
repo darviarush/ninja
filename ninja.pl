@@ -3,6 +3,7 @@
 use common::sense;
 use open qw/:std :utf8/;
 
+use Tk;
 use DDP {class=>{expand=>10_000}};
 use Carp;
 
