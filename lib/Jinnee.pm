@@ -8,7 +8,7 @@ use parent 'Ninja::Role::Jinnee';
 sub new {
 	my $cls = shift;
 	bless {
-		INC => ["kernel", "src"],
+		INC => ["src"],
 		packages => {},			# пакет => { INC => "src" }
 		@_
 	}, $cls;
@@ -211,7 +211,6 @@ sub tags {
 		bracket => [-foreground => '#5F9EA0'],
 		brace => [-foreground => '#00008B'],
 		
-		punct => [-foreground => '#00008B'],
 		remark => [-foreground => '#696969', -relief => 'raised'],
 		
 		error => [-background => '#FF0000'],
@@ -269,8 +268,6 @@ sub lex {
 		(?<staple> [()] ) |
 		(?<bracket> [\[\]] ) |
 		(?<brace> [{}] ) |
-		
-		(?<punct> [|,;] ) |
 		
 		(?<newline> \n ) |
 		(?<space> [\t\ ]+ )
@@ -354,12 +351,12 @@ sub compile {
 	}
 	
 	# 2. строим дерево опираясь на скобки
-	my @S = my $root = [];
+	my @K = my $root = [];
 	my @I = $root; # множество скобок
 	for my $r (@R) {
-		if($r->{lex} =~ /^[\{\[\(]\z/) { push @S, my $x=[]; push @I, $x }
-		elsif($r->{lex} =~ /^[\}\]\)]\z/) { pop @S }
-		else { push @{$S[$#S]}, $r }
+		if($r->{lex} =~ /^[\{\[\(]\z/) { push @K, my $x=[]; push @I, $x }
+		elsif($r->{lex} =~ /^[\}\]\)]\z/) { pop @K }
+		else { unshift @{$K[$#K]}, $r }
 	}
 	
 	# 3. внутри скобок производим ранжировку по операторам
@@ -380,12 +377,28 @@ sub compile {
 		|
 	";
 	
-	@S = ();
-	my $prio = sub { my ($s) = @_; ref $s ne "HASH"? 0: $op{$s->{lex}} };
-	for my $s (@I) {
-		my $prio1 = $prio->($s);
-		my $prio2 = @S? $prio->($S[$#S]): 0;
-		
+	# a + b * -c - x
+	# (a + (b * (-c))) - x
+	
+	my @S; my @T;
+	my $prio = sub { my ($s) = @_; ref $s ne "HASH"? 0: $op{$s->{type} eq "op"? substr($s->{lex}, 0, 1): $s->{type}} };
+	my is_op { my ($s) = @_; ref $s eq "HASH" && $s->{type} =~ /^(op)\z/n }
+	for my $I (@I) {		# скобки
+		for my $r (@$I) {	# операнды и операторы в скобках
+			if(ref $op eq "ARRAY") {	# если в скобках одно значение - то заменяем его
+				die "В скобках осталось несколько операндов" if @$op != 1;
+				die "В скобках скобка" if ref $op->[0] ne "HASH";
+				$op = $op->[0];
+				next;
+			}
+			elsif(!is_op($op)) { push(@T, $op) } 		# если это операнд, то помещаем его в T
+			else {
+				my $prio1 = $prio->($op);
+				while(@S && $prio->($S[$#S]) > $prio1) {
+					my $ = pop @S;
+				}
+			}
+		}
 	}
 	
 	$self
