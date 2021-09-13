@@ -9,7 +9,7 @@ sub new {
 	my $cls = shift;
 	bless {
 		INC => ["src"],
-		packages => {},			# пакет => { INC => "src" }
+		classes => {},
 		@_
 	}, $cls;
 }
@@ -318,11 +318,13 @@ sub color {
 }
 
 
-#@category Компилляция
+#@category Компиляция
 
-# компиллирует метод
+# разбирает код класса или метода
 sub compile {
-	my ($self, $text) = @_;
+	my ($self, $who) = @_;
+	
+	my $text = $self->file_read($who->{path});
 	
 	my $ret = $self->lex($text);
 	
@@ -352,9 +354,9 @@ sub compile {
 	
 	# 2. строим дерево опираясь на скобки
 	my @K = my $root = [];
-	my @I = $root; # множество скобок
+	my @I = \$root; # множество скобок
 	for my $r (@R) {
-		if($r->{lex} =~ /^[\{\[\(]\z/) { push @K, my $x=[]; push @I, $x }
+		if($r->{lex} =~ /^[\{\[\(]\z/) { push @K, []; push @I, \$K[$#K] }
 		elsif($r->{lex} =~ /^[\}\]\)]\z/) { pop @K }
 		else { unshift @{$K[$#K]}, $r }
 	}
@@ -383,26 +385,65 @@ sub compile {
 	my @S; my @T;
 	my $prio = sub { my ($s) = @_; ref $s ne "HASH"? 0: $op{$s->{type} eq "op"? substr($s->{lex}, 0, 1): $s->{type}} };
 	my is_op { my ($s) = @_; ref $s eq "HASH" && $s->{type} =~ /^(op)\z/n }
-	for my $I (@I) {		# скобки
+	my is_unary { my ($s) = @_;  }
+	my $shift_convolution = sub {	# сворачиваем все операторы в @S с меньшим приоритетом чем указанный и добавляем их в @T
+		my ($prio1) = @_;
+		while(@S && $prio->($S[$#S]) > $prio1) {
+			my $xop = pop @S;
+			if(is_unary($xop)) { push @T, [pop @T, $xop] } else { push @T, [pop(@T), pop(@T), $xop] }
+		}
+	};
+	for my $II (@I) {		# скобки
+		my $I = $$II;
 		for my $r (@$I) {	# операнды и операторы в скобках
 			if(ref $op eq "ARRAY") {	# если в скобках одно значение - то заменяем его
 				die "В скобках осталось несколько операндов" if @$op != 1;
-				die "В скобках скобка" if ref $op->[0] ne "HASH";
 				$op = $op->[0];
 				next;
 			}
 			elsif(!is_op($op)) { push(@T, $op) } 		# если это операнд, то помещаем его в T
 			else {
-				my $prio1 = $prio->($op);
-				while(@S && $prio->($S[$#S]) > $prio1) {
-					my $ = pop @S;
+				$shift_convolution->($prio->($op));
+				push @S, $op;
+			}
+		}
+		$shift_convolution->(0);
+		die "\@S не пуст!" if @S;
+		die "\@T пуст!" if !@T;
+		die "\@T>1!" if @T>1;
+		
+		$$II = pop @T;
+	}
+	
+	# # проставляем типы и объединяем многоарные методы, at put, например
+	# $self->types($root, $who);
+	# # уже с типами генерируем код на C
+	# $self->morph($root, $who);
+	
+	$root
+}
+
+# Компилирует все пакеты в so, а классы наследуемые от Application - в бинарники
+sub make {
+	my ($self) = @_;
+	
+	for my $package ($self->package_list) {
+		for my $class ($self->class_list($package)) {
+			my $constructor = $class->{path};
+			
+			
+			for my $category ($self->category_list($class)) {
+				for my $method ($self->method_list($category)) {
+					my $path_c = $method->{path};
+					if(-M $method->{path}) {
+						
+					}
 				}
 			}
 		}
 	}
-	
-	$self
 }
+
 
 
 1;
