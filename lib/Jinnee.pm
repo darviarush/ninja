@@ -5,6 +5,7 @@ use common::sense;
 
 use parent 'Ninja::Role::Jinnee';
 
+
 sub new {
 	my $cls = shift;
 	bless {
@@ -280,7 +281,7 @@ sub lex {
 		
 		my ($tag, $lexem) = exists $+{manyline}? ("string", $+{manyline}): each %+;
 		
-		$tag = "space", $indent4 = calc_indent($lexem) + 2 if $tag eq "indent";
+		$tag = "space", $indent4 = calc_indent($lexem) + 2, do { next if $lexem eq "" } if $tag eq "indent";
 		
 		push @$ret, [$lexem, $tag];
 	}
@@ -289,15 +290,38 @@ sub lex {
 		push @$ret, [substr($text, $prev), "error"];
 	}
 	
+	# ставим операторам и методам значение "унарный"
+	# проверяем соответствие скобок
+	# проверяем, чтобы операторы и методы стояли между соответствующими 
+	my @S;
+	my %rev_staple = qw/ } { ] [ ) ( /;
 	my $i = 0;
 	for my $x ( @$ret ) {
-		$i++;
-		my $next = $ret->[$i];
-		$next = $ret->[$i+1] if $next && $next->[1] eq "space";
 		
-		$x->[1] = "unary" if $x->[1] eq "method" && (
+		my $prev = $i==0? undef: $ret->[$i-1];
+		$prev = $i==1? undef: $ret->[$i-2] if $prev && $prev->[1] eq "space";
+		
+		my $next = $ret->[$i+1];
+		$next = $ret->[$i+2] if $next && $next->[1] eq "space";
+		
+		$i++;
+		
+		# скобки
+		push @S, $x->[0] if $x->[0] =~ /^[\(\[\{]\z/n;
+		if($x->[0] =~ /^[\)\]\}]\z/n) {
+			if(@S && $S[$#S] eq $rev_staple{$x->[0]}) { pop @S }
+			else { $x->[1] = "error" }
+		}
+		
+		# операторы
+		$x->[1] = "unary" if $x->[1] eq "op" && (
+			
+		);
+		
+		
+		$x->[1] = "unary" if $x->[1] =~ /^(method|op)\z/n && (
 			!$next
-			|| $next->[1] =~ /^(method|newline)\z/n
+			|| $next->[1] =~ /^(method|op|newline)\z/n
 			|| $next->[0] =~ /^[\)\]\}]\z/n
 		);
 	}
@@ -384,8 +408,8 @@ sub compile {
 	
 	my @S; my @T;
 	my $prio = sub { my ($s) = @_; ref $s ne "HASH"? 0: $op{$s->{type} eq "op"? substr($s->{lex}, 0, 1): $s->{type}} };
-	my is_op { my ($s) = @_; ref $s eq "HASH" && $s->{type} =~ /^(op)\z/n }
-	my is_unary { my ($s) = @_;  }
+	sub is_op { my ($s) = @_; ref $s eq "HASH" && $s->{type} =~ /^(op|unary|method)\z/n }
+	sub is_unary { my ($s) = @_; ref $s eq "HASH" && $s->{type} eq "unary"  }
 	my $shift_convolution = sub {	# сворачиваем все операторы в @S с меньшим приоритетом чем указанный и добавляем их в @T
 		my ($prio1) = @_;
 		while(@S && $prio->($S[$#S]) > $prio1) {
@@ -396,15 +420,15 @@ sub compile {
 	for my $II (@I) {		# скобки
 		my $I = $$II;
 		for my $r (@$I) {	# операнды и операторы в скобках
-			if(ref $op eq "ARRAY") {	# если в скобках одно значение - то заменяем его
-				die "В скобках осталось несколько операндов" if @$op != 1;
-				$op = $op->[0];
+			if(ref $r eq "ARRAY") {	# если в скобках одно значение - то заменяем его
+				die "В скобках осталось несколько операндов" if @$r != 1;
+				$r = $r->[0];
 				next;
 			}
-			elsif(!is_op($op)) { push(@T, $op) } 		# если это операнд, то помещаем его в T
+			elsif(!is_op($r)) { push(@T, $r) } 		# если это операнд, то помещаем его в T
 			else {
-				$shift_convolution->($prio->($op));
-				push @S, $op;
+				$shift_convolution->($prio->($r));
+				push @S, $r;
 			}
 		}
 		$shift_convolution->(0);
