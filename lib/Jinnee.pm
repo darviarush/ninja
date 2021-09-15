@@ -318,8 +318,15 @@ sub lex {
 			
 		);
 		
-		
-		$x->[1] = "unary" if $x->[1] =~ /^(method|op)\z/n && (
+		# методы: a method b
+		# a unary method b
+		if($x->[1] eq "method") {
+			if($prev->[1] eq  &&) {}
+			elsif() { $x->[1] = "unary" }
+			else { $x->[1] = "error" }
+		}
+
+		$x->[1] = "unary" if  && (
 			!$next
 			|| $next->[1] =~ /^(method|op|newline)\z/n
 			|| $next->[0] =~ /^[\)\]\}]\z/n
