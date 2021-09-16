@@ -7,13 +7,21 @@ use Carp;
 $SIG{__DIE__} = sub { print Carp::longmess(@_) };
 
 
+sub pp ($) {
+	my $x = shift;
+	p $x;
+	$x
+}
+
 sub msg (@) {
 	my $x=shift;
-	if(@_) {print "$x: "; p @_; $_[$#_]} else {print "$x\n"; $x}
+	unshift(@_, $x), $x = "msg" if ref $x or !defined $x;
+	if(@_) {print "$x: "; p @_; $_[$#_]} else {p $x; $x}
 }
 
 sub msga (@) {
 	my $x=shift;
+	unshift(@_, $x), $x = "msga" if ref $x or !defined $x;
 	print "$x: ";
 	p @_;
 	@_

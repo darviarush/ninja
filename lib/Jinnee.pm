@@ -296,15 +296,11 @@ sub lex {
 	my @S;
 	my %rev_staple = qw/ } { ] [ ) ( /;
 	my $i = 0;
+	my $prev;
 	for my $x ( @$ret ) {
-		
-		my $prev = $i==0? undef: $ret->[$i-1];
-		$prev = $i==1? undef: $ret->[$i-2] if $prev && $prev->[1] eq "space";
 		
 		my $next = $ret->[$i+1];
 		$next = $ret->[$i+2] if $next && $next->[1] eq "space";
-		
-		$i++;
 		
 		# скобки
 		push @S, $x->[0] if $x->[0] =~ /^[\(\[\{]\z/n;
@@ -314,23 +310,30 @@ sub lex {
 		}
 		
 		# операторы
-		$x->[1] = "unary" if $x->[1] eq "op" && (
+		# $x->[1] = "unary" if $x->[1] eq "op" && (
 			
-		);
+		# );
 		
 		# методы: a method b
 		# a unary method b
 		if($x->[1] eq "method") {
-			if($prev->[1] eq  &&) {}
-			elsif() { $x->[1] = "unary" }
+			
+			my $is_expression = $prev && ($prev->[1] =~ /^(variable|class|attribute)\z/ || $prev->[0] =~ /^[\(\[\{]\z/n);
+
+			if($is_expression && $next && (
+				$next->[1] =~ /^(variable|class|attribute)\z/ 
+				|| $next->[0] =~ /^[\(\[\{]\z/n)
+			) {}
+			elsif($is_expression && (
+				!$next
+				|| $next->[1] =~ /^(method|op|newline)\z/n
+				|| $next->[0] =~ /^[\)\]\}]\z/n
+			)) { $x->[1] = "unary" }
 			else { $x->[1] = "error" }
 		}
-
-		$x->[1] = "unary" if  && (
-			!$next
-			|| $next->[1] =~ /^(method|op|newline)\z/n
-			|| $next->[0] =~ /^[\)\]\}]\z/n
-		);
+		
+		$prev = $ret->[$i] if $ret->[$i][1] !~ /^(space|newline|remark)\z/;
+		$i++;
 	}
 	
 	return $ret;
