@@ -470,7 +470,10 @@ sub to_tree {
 		}
 		$shift_convolution->(0);
 		
-		::msg "x", @T;
+		::msg "lex0", s_lex0(\@R);
+		::msg "lex", s_lex(\@R);
+		#::msg "ex", \@T;
+		::msg "ex", s_tree(\@T);
 		
 		die "\@S не пуст!" if @S;
 		die "\@T пуст!" if !@T;
@@ -487,9 +490,12 @@ sub to_tree {
 	$root
 }
 
+sub s_lex0 { join " ", map { $_->{lex} } @{$_[0]} }
+sub s_lex { join " ", map { join ".", $_->{lex}, $_->{type} } @{$_[0]} }
+
 sub s_tree {
 	my ($tree) = @_;
-	ref $tree eq "ARRAY"? join("", "(", s_tree($tree),")"): $tree->{}
+	join "", ref $tree eq "ARRAY"? (" ( ", (map { s_tree($_) } @$tree), " ) "): ($tree->{lex}, ".", $tree->{type})
 }
 
 
