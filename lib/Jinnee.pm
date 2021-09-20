@@ -6,6 +6,9 @@ use common::sense;
 use parent 'Ninja::Role::Jinnee';
 
 
+our $DEBUG = 0;
+
+
 sub new {
 	my $cls = shift;
 	bless {
@@ -251,7 +254,8 @@ sub lex {
 
 		(?<remark> ([\ \t]|^) \# [^\n]* ) |
 		
-		(?<number> [+-]?\d+(\.\d+)? ) |
+		(?<integer> \d+ ) |
+		(?<number> \d+\.\d+ ) |
 		(?<string>
 			""" (\\"|"(?!"")|[^"])* """(?!") | ''' (\\'|'(?!'')|[^'])* '''(?!')
 			| "(\\"|[^"])*"(?!") | '(\\'|[^'])*'(?!')
@@ -316,7 +320,7 @@ sub lex {
 			my ($x, $t) = @_;
 			for my $r (split //, $t) {
 				return 1 if $x && (
-					$r eq "a" && $x->[1] =~ /^(variable|class|attribute)\z/n
+					$r eq "a" && $x->[1] =~ /^(variable|class|attribute|integer|number|string)\z/n
 					|| $r eq "l" && $x->[1] eq "lunary"
 					|| $r eq "u" && $x->[1] eq "unary"
 					|| $r eq "m" && $x->[1] eq "method"
@@ -335,22 +339,40 @@ sub lex {
 		# операторы
 		if($x->[1] eq "operator") {
 			my $abs_prev = $i==0? undef: $ret->[$i-1];
-			my $abs_next = $i==$#$ret? undef: $ret->[$i+1];
+			my $abs_next = $ret->[$i+1];
+
+			# ::msg "op", {
+					# "op" => $x->[0],
+					# "abs_prev" => $abs_prev,
+					# "abs_next" => $abs_next,
+					# "prev" => $prev,
+					# "next" => $next,
+				# };
 
 			if(is_expression($abs_prev, "au)") && is_expression($abs_next, "(a")) { $x->[1] = "method" }
 			elsif(is_expression($abs_prev, "sn") && is_expression($prev, "au)") 
 				&& is_expression($abs_next, "s") && is_expression($next, "(aom")) { $x->[1] = "method" }
 			elsif(is_expression($abs_prev, "au)") && is_expression($abs_next, "sn)\$")) { $x->[1] = "unary" }
 			elsif(is_expression($abs_prev, "^sn(") && is_expression($abs_next, "a(")) { $x->[1] = "lunary" }
-			else { $x->[1] = "error" }
+			else {
+				$x->[1] = "error";
+			}
 		}
 		
 		# методы: a method b
 		# a unary method b
+		# a method -b
 		elsif($x->[1] eq "method") {
-			my $is_expression = is_expression($prev, "au(");
+			my $is_expression = is_expression($prev, "au");
 
-			if($is_expression && is_expression($next, "a)")) {}
+			if($is_expression && (
+				is_expression($next, "a)")
+				|| is_expression($next, "o") && do {
+					my $abs_next = $ret->[$i+1];
+					my $after_next = $ret->[$i+3];
+					is_expression($abs_next, "s") && is_expression($after_next, "a(")
+				}
+			)) {}
 			elsif($is_expression && is_expression($next, "mon)\$")) { $x->[1] = "unary" }
 			else { $x->[1] = "error" }
 		}
@@ -384,7 +406,6 @@ sub to_tree {
 	#my $text = $self->file_read($who->{path});
 	
 	my $ret = $self->lex($text);
-	::msg $ret;
 	
 	# 1. убираем пробелы и строки перед методами и закрывающими скобками
 	my $line = 1;
@@ -414,17 +435,19 @@ sub to_tree {
 	
 	# 2. строим дерево опираясь на скобки
 	my @K = my $root = [];
-	my @I = \$root; # множество скобок
+	my @I = $root; # множество скобок
 	for my $r (@R) {
-		if($r->{lex} =~ /^[\{\[\(]\z/) { push @K, []; push @I, \$K[$#K] }
+		if($r->{lex} =~ /^[\{\[\(]\z/) { my $new_sk = []; push @{$K[$#K]}, $new_sk; push @K, $new_sk; push @I, $new_sk; }
 		elsif($r->{lex} =~ /^[\}\]\)]\z/) { pop @K }
-		else { unshift @{$K[$#K]}, $r }
+		else { push @{$K[$#K]}, $r }
 	}
 	
 	# 3. внутри скобок производим ранжировку по операторам
 	my $i = 0;
 	my %op = map { $i++; map { ($_ => $i) } grep {$_} split /\s+/, $_ } grep {$_} split /\n/, "
-		unary
+		-A +A
+		unary A! A\$ A# A+ A-
+		@
 		^
 		* /
 		+ -
@@ -433,53 +456,75 @@ sub to_tree {
 		not
 		and
 		or
-		!
-		$
-		~
+		~A
 		&
 		|
+		^A
 	";
 	
 	# a + b * -c - x
 	# (a + (b * (-c))) - x
 	
 	my @S; my @T;
-	my $prio = sub { my ($s) = @_; ref $s ne "HASH"? 0: $op{$s->{type} eq "unary"? "unary": $s->{lex} =~ /^[[:punct:]]/? substr($s->{lex}, 0, 1): $s->{type}} };
-	sub is_op { my ($s) = @_; ref $s eq "HASH" && $s->{type} =~ /^(unary|method)\z/n }
-	sub is_unary { my ($s) = @_; ref $s eq "HASH" && $s->{type} eq "unary"  }
+	my $prio = sub { 
+		my ($s) = @_;
+		
+		my $f = $s->{lex} =~ /^[[:punct:]]/? do {
+			my $r = $s->{type} eq "unary"? "A$s->{lex}": $s->{type} eq "lunary"? "$s->{lex}A": $s->{lex};
+			my $x = $op{$r};
+			if(!defined $x) {
+				$x = substr $s->{lex}, 0, 1;
+				$x = $s->{type} eq "unary"? "A$x": $s->{type} eq "lunary"? "${x}A": $x;
+				$x = $op{$x};
+				die "нет приоритета у оператора $r" if !defined $x;
+			}
+			$x
+		}:
+		$op{$s->{type}};
+		
+		die "нет приоритета у метода $s->{lex}" if !defined $f;
+		
+		$f
+	};
+	sub is_op { my ($s) = @_; ref $s eq "HASH" && $s->{type} =~ /^(unary|lunary|method)\z/n }
+	sub is_unary { my ($s) = @_; ref $s eq "HASH" && $s->{type} =~ /^(unary|lunary)/n  }
+	
+	my $in_T = sub { ::msg "in T", s_tree0($_[0]) if $DEBUG>1; push @T, $_[0] };
+	my $from_T = sub { my $r = pop @T; die "from T - пусто" if !$r; ::msg "from T", s_tree0($r) if $DEBUG>1; $r };
+	my $in_S = sub { ::msg "in S", s_tree0($_[0]) if $DEBUG>1; push @S, $_[0] };
+	my $from_S = sub { my $r = pop @S; die "from S - пусто" if !$r; ::msg "from S", s_tree0($r) if $DEBUG>1; $r };
+	
 	my $shift_convolution = sub {	# сворачиваем все операторы в @S с меньшим приоритетом чем указанный и добавляем их в @T
 		my ($prio1) = @_;
-		while(@S && $prio->($S[$#S]) > $prio1) {
-			my $xop = pop @S;
-			if(is_unary($xop)) { push @T, [pop @T, $xop] } else { push @T, [pop(@T), pop(@T), $xop] }
+		while(@S && $prio->($S[$#S]) <= $prio1) {
+			my $xop = $from_S->();
+			if(is_unary($xop)) { $in_T->([$from_T->(), $xop]) } else { $in_T->([reverse($from_T->(), $xop, $from_T->())]) }
 		}
 	};
-	for my $II (@I) {		# скобки
-		my $I = $$II;
+	
+	::msg "R", s_tree0(\@R) if $DEBUG>0;
+	::msg "I", s_tree0($root) if $DEBUG>0;
+	
+	for my $I (reverse @I) {		# скобки
 		for my $r (@$I) {	# операнды и операторы в скобках
-			if(ref $r eq "ARRAY") {	# если в скобках одно значение - то заменяем его
-				die "В скобках осталось несколько операндов" if @$r != 1;
-				$r = $r->[0];
-				next;
-			}
-			elsif(!is_op($r)) { push(@T, $r) } 		# если это операнд, то помещаем его в T
+			if(!is_op($r)) { $in_T->($r) } 		# если это операнд, то помещаем его в T
+			elsif($r->{type} eq "lunary") { $in_S->($r) }
 			else {
-				$shift_convolution->($prio->($r));
-				push @S, $r;
+				my $prio_r = $prio->($r);
+				::msg "prio", $prio_r, s_tree0($r) if $DEBUG>1;
+				$shift_convolution->($prio_r);
+				$in_S->($r);
 			}
 		}
-		$shift_convolution->(0);
-		
-		::msg "lex0", s_lex0(\@R);
-		::msg "lex", s_lex(\@R);
-		#::msg "ex", \@T;
-		::msg "ex", s_tree(\@T);
+		$shift_convolution->("inf");
 		
 		die "\@S не пуст!" if @S;
 		die "\@T пуст!" if !@T;
-		die "\@T=".@T.">1!" if @T>1;
+		die "\@T=".@T.">1!" if @T!=1;
 		
-		$$II = pop @T;
+		my $x = $from_T->();
+		@$I = ref $x eq "ARRAY"? @$x: $x;
+		::msg "ex", s_tree0($root) if $DEBUG>0;
 	}
 	
 	# # проставляем типы и объединяем многоарные методы, at put, например
@@ -490,12 +535,19 @@ sub to_tree {
 	$root
 }
 
-sub s_lex0 { join " ", map { $_->{lex} } @{$_[0]} }
-sub s_lex { join " ", map { join ".", $_->{lex}, $_->{type} } @{$_[0]} }
+sub s_lex0 {
+	ref $_[0] eq "ARRAY"? "[".@{$_[0]}."]": $_[0]->{type} eq "lunary"? " $_[0]->{lex}": $_[0]->{type} eq "unary"? ($_[0]->{lex} =~ /^[[:punct:]]/? $_[0]->{lex}: " $_[0]->{lex}"): $_[0]->{type} eq "method"? " $_[0]->{lex} ": $_[0]->{lex} 
+}
+sub s_lex { ref $_[0] eq "ARRAY"? "[".@{$_[0]}."]": join(".", $_[0]->{lex}, $_[0]->{type}) }
 
 sub s_tree {
 	my ($tree) = @_;
-	join "", ref $tree eq "ARRAY"? (" ( ", (map { s_tree($_) } @$tree), " ) "): ($tree->{lex}, ".", $tree->{type})
+	join "", ref $tree eq "ARRAY"? ("( ", (map { s_tree($_) } @$tree), " )"): s_lex($tree)
+}
+
+sub s_tree0 {
+	my ($tree) = @_;
+	ref $tree eq "ARRAY"? join("", "(", (map { s_tree0($_) } @$tree), ")"): s_lex0($tree)
 }
 
 

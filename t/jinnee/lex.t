@@ -1,4 +1,6 @@
 use common::sense;
+use open qw/:std :utf8/;
+
 use Test::More;
 
 use lib "lib";

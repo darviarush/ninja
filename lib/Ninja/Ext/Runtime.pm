@@ -16,13 +16,15 @@ sub pp ($) {
 sub msg (@) {
 	my $x=shift;
 	unshift(@_, $x), $x = "msg" if ref $x or !defined $x;
-	if(@_) {print "$x: "; p @_; $_[$#_]} else {p $x; $x}
+	my ($pkg, $file, $line) = caller;
+	if(@_) {print STDERR "$file:$line $x: "; p @_; $_[$#_]} else {p $x; $x}
 }
 
 sub msga (@) {
 	my $x=shift;
 	unshift(@_, $x), $x = "msga" if ref $x or !defined $x;
-	print "$x: ";
+	my ($pkg, $file, $line) = caller;
+	print STDERR "$file:$line $x: ";
 	p @_;
 	@_
 }
