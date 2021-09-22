@@ -4,7 +4,7 @@ use DDP {class=>{expand=>10_000}};
 use Carp;
 
 # в Tk работать не будет - перекрывается своим обработчиком
-$SIG{__DIE__} = sub { print Carp::longmess(@_) };
+$SIG{__DIE__} = sub { print STDERR Carp::longmess(@_) };
 
 
 sub pp ($) {
@@ -30,7 +30,7 @@ sub msga (@) {
 }
 
 sub trace {
-	print Carp::longmess(@_), "\n\n";
+	print STDERR Carp::longmess(@_), "\n\n";
 }
 
 1;

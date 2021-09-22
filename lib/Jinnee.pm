@@ -13,7 +13,10 @@ sub new {
 	my $cls = shift;
 	bless {
 		INC => ["src"],
-		classes => {},
+		# class->{$name}->{prop}{$name} => type (class name)
+		#      ->{method}{"at put"} => {args=>[type, type]}
+		#      ->{mtime} => unixtime
+		class => {},
 		@_
 	}, $cls;
 }
@@ -443,6 +446,7 @@ sub to_tree {
 	}
 	
 	# 3. внутри скобок производим ранжировку по операторам
+	my %I = map { int($_) => 1 } @I;
 	my $i = 0;
 	my %op = map { $i++; map { ($_ => $i) } grep {$_} split /\s+/, $_ } grep {$_} split /\n/, "
 		-A +A
@@ -496,9 +500,20 @@ sub to_tree {
 	
 	my $shift_convolution = sub {	# сворачиваем все операторы в @S с меньшим приоритетом чем указанный и добавляем их в @T
 		my ($prio1) = @_;
-		while(@S && $prio->($S[$#S]) <= $prio1) {
+		while(@S && $prio->($S[$#S]) < $prio1) {
 			my $xop = $from_S->();
-			if(is_unary($xop)) { $in_T->([$from_T->(), $xop]) } else { $in_T->([reverse($from_T->(), $xop, $from_T->())]) }
+			
+			my $y = $from_T->();
+			$in_T->([$y, $xop]), return if is_unary($xop);
+			
+			my $x = $from_T->();
+			
+			# $x $xop $y: если $x - массив с бинарным оператором и приоритеты совпадают - то добавляем $xop $y к нему
+			if(ref $y eq "ARRAY" and !exists $I{int $y} and @$y>2 and $prio->($xop) == $prio->($y->[1])) {
+				$in_T->([$x, $xop, @$y]);
+			} else {
+				$in_T->([$x, $xop, $y]);
+			}
 		}
 	};
 	
@@ -572,6 +587,24 @@ sub make {
 	}
 }
 
+
+# компиллирует метод или описание класса
+sub compile {
+	my ($self, $text) = @_;
+	
+	my $root = $self->to_tree($text);
+	
+	if($text =~ s/^(\w+)[ \t]+subclass[ \t]+(\w+)[ \t]*(\n|$)//) {
+		my ($class, $super) = ($2, $1);
+		
+	}
+	else {
+		
+	}
+	
+	
+	$self
+}
 
 
 1;
