@@ -500,7 +500,7 @@ sub to_tree {
 	
 	my $shift_convolution = sub {	# сворачиваем все операторы в @S с меньшим приоритетом чем указанный и добавляем их в @T
 		my ($prio1) = @_;
-		while(@S && $prio->($S[$#S]) < $prio1) {
+		while(@S && $prio->($S[$#S]) <= $prio1) {
 			my $xop = $from_S->();
 			
 			my $y = $from_T->();
