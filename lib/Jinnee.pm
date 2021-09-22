@@ -500,6 +500,7 @@ sub to_tree {
 	
 	my $shift_convolution = sub {	# сворачиваем все операторы в @S с меньшим приоритетом чем указанный и добавляем их в @T
 		my ($prio1) = @_;
+		my $s; my $p;
 		while(@S && $prio->($S[$#S]) <= $prio1) {
 			my $xop = $from_S->();
 			
@@ -507,13 +508,7 @@ sub to_tree {
 			$in_T->([$y, $xop]), return if is_unary($xop);
 			
 			my $x = $from_T->();
-			
-			# $x $xop $y: если $x - массив с бинарным оператором и приоритеты совпадают - то добавляем $xop $y к нему
-			if(ref $y eq "ARRAY" and !exists $I{int $y} and @$y>2 and $prio->($xop) == $prio->($y->[1])) {
-				$in_T->([$x, $xop, @$y]);
-			} else {
-				$in_T->([$x, $xop, $y]);
-			}
+			$in_T->([$x, $xop, $y]);			
 		}
 	};
 	
@@ -537,8 +532,20 @@ sub to_tree {
 		die "\@T пуст!" if !@T;
 		die "\@T=".@T.">1!" if @T!=1;
 		
-		my $x = $from_T->();
+		# рекурсивно обходим и операторы с одинаковым приоритетом обратно возращаем в список
+		my $flat_op = sub {
+			my ($x) = @_;
+			# $x $xop $y: если $x - массив с бинарным оператором и приоритеты совпадают - то добавляем $xop $y к нему
+			if(ref $y eq "ARRAY" and !exists $I{int $y} and @$y>2 and $prio->($xop) == $prio->($y->[1])) {
+				$in_T->([$x, $xop, @$y]);
+			} else {
+				
+			}
+		};
+		
+		my $x = $flat_op->($from_T->());
 		@$I = ref $x eq "ARRAY"? @$x: $x;
+		
 		::msg "ex", s_tree0($root) if $DEBUG>0;
 	}
 	
