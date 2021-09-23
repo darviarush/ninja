@@ -402,53 +402,11 @@ sub color {
 
 #@category Компиляция
 
-# разбирает код класса или метода и возвращает дерево разбора AST (грамматическинй ализатор)
-sub to_tree {
-	my ($self, $text) = @_;
-	
-	#my $text = $self->file_read($who->{path});
-	
-	my $ret = $self->lex($text);
-	
-	# 1. убираем пробелы и строки перед методами и закрывающими скобками
-	my $line = 1;
-	my $char = 1;
-	my @R = grep { $_->{type} ne "space" } map {
-		
-		my $lex = {
-			line => $line,
-			char => $char,
-			lex => $_->[0],
-			type => $_->[1],
-		};
-
-		die "$line:$char: syntax error `$_->[0]`" if $_->[1] eq "error";
-
-		$char += length $_->[0];
-
-		$line++, $char = 1 if $_->[1] eq "newline";
-
-		$lex
-	} @$ret;
-	
-	for(my $i=0; $i<@R; $i++) {
-		splice @R, $i+1, 1 if $R[$i]{lex} =~ /^[\{\[\(]\z/ && $i+1<@R && $R[$i+1]{type} eq "newline";
-		splice @R, $i, 1 if $R[$i]{type} eq "newline" && $i+1<@R && $R[$i+1]{lex} =~ /^[\}\]\)]\z/;
-	}
-	
-	# 2. строим дерево опираясь на скобки
-	my @K = my $root = [];
-	my @I = $root; # множество скобок
-	for my $r (@R) {
-		if($r->{lex} =~ /^[\{\[\(]\z/) { my $new_sk = []; push @{$K[$#K]}, $new_sk; push @K, $new_sk; push @I, $new_sk; }
-		elsif($r->{lex} =~ /^[\}\]\)]\z/) { pop @K }
-		else { push @{$K[$#K]}, $r }
-	}
-	
-	# 3. внутри скобок производим ранжировку по операторам
-	my %I = map { int($_) => 1 } @I;
+# Подготавливаем таблицу приоритетов операторов
+my %OP;
+{
 	my $i = 0;
-	my %op = map { $i++; map { ($_ => $i) } grep {$_} split /\s+/, $_ } grep {$_} split /\n/, "
+	%OP = map { $i++; map { ($_ => $i) } grep {$_} split /\s+/, $_ } grep {$_} split /\n/, "
 		-A +A
 		unary A! A\$ A# A+ A-
 		@
@@ -464,34 +422,92 @@ sub to_tree {
 		&
 		|
 		^A
+		newline
 	";
+}
+
+# приоритет оператора
+sub prio { 
+	my ($s, $op) = @_;
 	
+	my $f = $s->{lex} =~ /^[[:punct:]]/? do {
+		my $r = $s->{type} eq "unary"? "A$s->{lex}": $s->{type} eq "lunary"? "$s->{lex}A": $s->{lex};
+		my $x = $op->{$r};
+		if(!defined $x) {
+			$x = substr $s->{lex}, 0, 1;
+			$x = $s->{type} eq "unary"? "A$x": $s->{type} eq "lunary"? "${x}A": $x;
+			$x = $op->{$x};
+			die "нет приоритета у оператора $r" if !defined $x;
+		}
+		$x
+	}:
+	$op->{$s->{type}};
+	
+	die "нет приоритета у метода $s->{lex}" if !defined $f;
+	
+	$f
+};
+sub is_op { my ($s) = @_; ref $s eq "HASH" && $s->{type} =~ /^(unary|lunary|method|newline)\z/n }
+sub is_unary { my ($s) = @_; ref $s eq "HASH" && $s->{type} =~ /^(unary|lunary)/n  }
+
+
+# разбирает код класса или метода и возвращает дерево разбора AST (грамматическинй ализатор)
+sub to_tree {
+	my ($self, $text) = @_;
+	
+	my $ret = $self->lex($text);
+
+	# 1. убираем пробелы и строки перед методами и закрывающими скобками и повторяющиеся пустые строки
+	my $line = 1;
+	my $char = 1;
+	my $prev_newline;
+	my $remarks = [];
+	my @R = map {
+		
+		die "$line:$char: syntax error `$_->[0]`" if $_->[1] eq "error";
+		
+		my $lex = {
+			line => $line,
+			char => $char,
+			lex => $_->[0],
+			type => $_->[1],
+		};
+
+		$lex->{prio} = prio($lex, \%OP), is_unary($lex)? ($lex->{unary} = 1): () if is_op($lex);
+
+		$char += length $_->[0];
+
+		$line++, $char = 1 if $_->[1] eq "newline";
+
+		$_->[1] eq "space"? ():
+		$_->[1] eq "remark"? do { push @$remarks, $lex; () }:
+		$_->[1] eq "newline"? do { $prev_newline? (): do { $prev_newline = 1; $lex } }:
+		do { $prev_newline = 0; $lex }
+	} @$ret;
+	
+	# удаляем \n после { и перед }
+	for(my $i=0; $i<@R; $i++) {
+		splice @R, $i+1, 1 if $R[$i]{lex} =~ /^[\{\[\(]\z/ && $i+1<@R && $R[$i+1]{type} eq "newline";
+		splice @R, $i, 1 if $R[$i]{type} eq "newline" && ($i+1<@R && ($R[$i+1]{lex} =~ /^[\}\]\)]\z/ || $R[$i+1]{type} eq "method") || $i+1==@R);
+	}
+	
+	# 2. строим дерево опираясь на скобки
+	my @K = my $root = [];
+	my @I = $root; # множество скобок
+	for my $r (@R) {
+		if($r->{lex} =~ /^[\{\[\(]\z/) { my $new_sk = []; push @{$K[$#K]}, $new_sk; push @K, $new_sk; push @I, $new_sk; }
+		elsif($r->{lex} =~ /^[\}\]\)]\z/) { pop @K }
+		else { push @{$K[$#K]}, $r }
+	}
+	
+	my %I = map { int($_) => 1 } @I;
+	
+	# 3. внутри скобок производим ранжировку по операторам
+	#
 	# a + b * -c - x
 	# (a + (b * (-c))) - x
 	
 	my @S; my @T;
-	my $prio = sub { 
-		my ($s) = @_;
-		
-		my $f = $s->{lex} =~ /^[[:punct:]]/? do {
-			my $r = $s->{type} eq "unary"? "A$s->{lex}": $s->{type} eq "lunary"? "$s->{lex}A": $s->{lex};
-			my $x = $op{$r};
-			if(!defined $x) {
-				$x = substr $s->{lex}, 0, 1;
-				$x = $s->{type} eq "unary"? "A$x": $s->{type} eq "lunary"? "${x}A": $x;
-				$x = $op{$x};
-				die "нет приоритета у оператора $r" if !defined $x;
-			}
-			$x
-		}:
-		$op{$s->{type}};
-		
-		die "нет приоритета у метода $s->{lex}" if !defined $f;
-		
-		$f
-	};
-	sub is_op { my ($s) = @_; ref $s eq "HASH" && $s->{type} =~ /^(unary|lunary|method)\z/n }
-	sub is_unary { my ($s) = @_; ref $s eq "HASH" && $s->{type} =~ /^(unary|lunary)/n  }
 	
 	my $in_T = sub { ::msg "in T", s_tree0($_[0]) if $DEBUG>1; push @T, $_[0] };
 	my $from_T = sub { my $r = pop @T; die "from T - пусто" if !$r; ::msg "from T", s_tree0($r) if $DEBUG>1; $r };
@@ -501,52 +517,50 @@ sub to_tree {
 	my $shift_convolution = sub {	# сворачиваем все операторы в @S с меньшим приоритетом чем указанный и добавляем их в @T
 		my ($prio1) = @_;
 		my $s; my $p;
-		while(@S && $prio->($S[$#S]) <= $prio1) {
+		while(@S && $S[$#S]->{prio} <= $prio1) {
 			my $xop = $from_S->();
 			
 			my $y = $from_T->();
-			$in_T->([$y, $xop]), return if is_unary($xop);
+			$in_T->([$y, $xop]), next if $xop->{unary};
 			
 			my $x = $from_T->();
-			$in_T->([$x, $xop, $y]);			
+			# $x $xop $y: если $x - массив с бинарным оператором и приоритеты совпадают - то добавляем $xop $y к нему
+			if(ref $y eq "ARRAY" and !exists $I{int $y} and @$y>2 and $xop->{prio} == $y->[1]->{prio}) {
+				$in_T->([$x, $xop, @$y]);
+			} elsif(ref $x eq "ARRAY" and !exists $I{int $x} and @$x>2 and $xop->{prio} == $x->[1]->{prio}) {
+				$in_T->([@$x, $xop, $y]);
+			} else {
+				$in_T->([$x, $xop, $y]);
+			}
 		}
 	};
 	
-	::msg "R", s_tree0(\@R) if $DEBUG>0;
-	::msg "I", s_tree0($root) if $DEBUG>0;
+	#::msg "R", s_tree0(\@R) if $DEBUG>0;
+	#::msg "I", s_tree0($root) if $DEBUG>0;
 	
 	for my $I (reverse @I) {		# скобки
+		::msg "in brackets", s_tree($I) if $DEBUG>1;
+		::msg "in brackets0", s_tree0($I) if $DEBUG>1;
+	
 		for my $r (@$I) {	# операнды и операторы в скобках
 			if(!is_op($r)) { $in_T->($r) } 		# если это операнд, то помещаем его в T
 			elsif($r->{type} eq "lunary") { $in_S->($r) }
 			else {
-				my $prio_r = $prio->($r);
-				::msg "prio", $prio_r, s_tree0($r) if $DEBUG>1;
-				$shift_convolution->($prio_r);
+				::msg "prio", $r->{prio}, s_tree0($r) if $DEBUG>1;
+				$shift_convolution->($r->{prio});
 				$in_S->($r);
 			}
 		}
-		$shift_convolution->("inf");
+		$shift_convolution->(+"inf");
 		
 		die "\@S не пуст!" if @S;
 		die "\@T пуст!" if !@T;
 		die "\@T=".@T.">1!" if @T!=1;
 		
-		# рекурсивно обходим и операторы с одинаковым приоритетом обратно возращаем в список
-		my $flat_op = sub {
-			my ($x) = @_;
-			# $x $xop $y: если $x - массив с бинарным оператором и приоритеты совпадают - то добавляем $xop $y к нему
-			if(ref $y eq "ARRAY" and !exists $I{int $y} and @$y>2 and $prio->($xop) == $prio->($y->[1])) {
-				$in_T->([$x, $xop, @$y]);
-			} else {
-				
-			}
-		};
-		
-		my $x = $flat_op->($from_T->());
+		my $x = $from_T->();
 		@$I = ref $x eq "ARRAY"? @$x: $x;
 		
-		::msg "ex", s_tree0($root) if $DEBUG>0;
+		#::msg "ex", s_tree0($root) if $DEBUG>0;
 	}
 	
 	# # проставляем типы и объединяем многоарные методы, at put, например
@@ -560,11 +574,11 @@ sub to_tree {
 sub s_lex0 {
 	ref $_[0] eq "ARRAY"? "[".@{$_[0]}."]": $_[0]->{type} eq "lunary"? " $_[0]->{lex}": $_[0]->{type} eq "unary"? ($_[0]->{lex} =~ /^[[:punct:]]/? $_[0]->{lex}: " $_[0]->{lex}"): $_[0]->{type} eq "method"? " $_[0]->{lex} ": $_[0]->{lex} 
 }
-sub s_lex { ref $_[0] eq "ARRAY"? "[".@{$_[0]}."]": join(".", $_[0]->{lex}, $_[0]->{type}) }
+sub s_lex { ref $_[0] eq "ARRAY"? "[".@{$_[0]}."]": "$_[0]->{lex}.$_[0]->{type}" }
 
 sub s_tree {
 	my ($tree) = @_;
-	join "", ref $tree eq "ARRAY"? ("( ", (map { s_tree($_) } @$tree), " )"): s_lex($tree)
+	join " ", ref $tree eq "ARRAY"? ("( ", (map { s_tree($_) } @$tree), " )"): s_lex($tree)
 }
 
 sub s_tree0 {
@@ -596,10 +610,12 @@ sub make {
 
 
 # компиллирует метод или описание класса
+# для компилляции подгружаются описания файлов с диска
 sub compile {
 	my ($self, $text) = @_;
 	
-	my $root = $self->to_tree($text);
+	# получаем AST:
+	my $exp = $self->to_tree($text);
 	
 	if($text =~ s/^(\w+)[ \t]+subclass[ \t]+(\w+)[ \t]*(\n|$)//) {
 		my ($class, $super) = ($2, $1);

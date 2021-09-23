@@ -17,8 +17,10 @@ subtest op => sub {
 
 	# бинарные операторы с одинаковым приоритетом выстраиваются в список
 
+	is Jinnee::s_tree0($jinnee->to_tree("a - x + b - c")), "(a - x + b - c)";
 	is Jinnee::s_tree0($jinnee->to_tree("a - -x + b * c")), "(a - (x -) + (b * c))";
 	is Jinnee::s_tree0($jinnee->to_tree("a - (-x) + b*c")), "(a - (x -) + (b * c))";
+	is Jinnee::s_tree0($jinnee->to_tree("a < -b < c+1 = 5")), "(a < (b -) < (c + 1) = 5)";
 	
 	# скобки остаются
 	is Jinnee::s_tree0($jinnee->to_tree("((a - (r-(-x)+6)) + b)*c")), "(((a - (r - (x -) + 6)) + b) * c)";
@@ -27,15 +29,38 @@ subtest op => sub {
 };
 
 
+subtest message => sub {
+
+	#$Jinnee::DEBUG = 2;
+	is Jinnee::s_tree0($jinnee->to_tree("a method++ * -x!")), "(((a method)++) * ((x -)!))";
+	is Jinnee::s_tree0($jinnee->to_tree("a method -x!")), "(a method ((x -)!))";
+	is Jinnee::s_tree0($jinnee->to_tree("a at i put 10")), "(a at i put 10)";
+	
+	done_testing();
+};
+
+
 subtest method => sub {
 
-	$Jinnee::DEBUG = 2;
-	is Jinnee::s_tree0($jinnee->to_tree("a method++ * -x!")), "(((a method)++) * ((x -)!))";
+	#$Jinnee::DEBUG = 2;
+	
+	
+	is Jinnee::s_tree0($jinnee->to_tree(<<"END1"))."\n", <<"END2";
+a save
+# method
 
-	# is Jinnee::s_tree0($jinnee->to_tree("a method -x!")), "(a method ((x -)!))";
+								
+"x.log" asFile 
+	write "save"
 
-	# is Jinnee::s_tree0($jinnee->to_tree("a at i put 10")), "(a at i put 10)";
-	# is Jinnee::s_tree0($jinnee->to_tree("a < -b < c+1 = 5")), "(a < (b -) < (c + 1) = 5)";
+
+^a + 1	# this is return
+
+END1
+((a save)
+(("x.log" asFile) write "save")
+((a + 1) ^))
+END2
 
 	done_testing();
 };
