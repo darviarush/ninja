@@ -45,7 +45,7 @@ foreach i {0 1 2 3} \
 
 # тулбар
 pack [frame .f] -side bottom
-pack [label .f.position -text "Line 1, Column 1" -justify left] -side left
+pack [label .f.position -text "Line 1, Column 1" -justify left] -side left -expand 1
 
 
 # текст
