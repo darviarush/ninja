@@ -65,6 +65,31 @@ sub construct {
 	
 	$self->config->load;
 	
+	use Tcl;
+	my $i = Tcl->new;
+	$i->SetVar("argv", Tcl::GLOBAL_ONLY);
+	$i->SetVar("tcl_interactive", 0, Tcl::GLOBAL_ONLY);
+	$i->Init;
+		# my %config = qw/x 30/;
+	# tie %config, "Tcl::Var", $i, "config", Tcl::GLOBAL_ONLY;
+	
+	# my $x = 10;
+	# tie $x, "Tcl::Var", $i, "x", Tcl::GLOBAL_ONLY;
+	$i->SetVar("xxx", 10);
+	$i->SetVar2("config", "x", 30);
+	
+	$i->EvalFile("lib/Ninja/tk/main-window.tcl");
+	
+	
+	
+	while(my $wid = eval { $i->invoke(qw/ winfo id . /) }) {
+		#warn "wid: ", $wid, " k: ", $k++;
+		$i->DoOneEvent(0);
+	}
+
+	
+	return $self;
+	
 	$self->{root} = my $root = MainWindow->new(-title => "Ninja");
 
 	my $menu = $root->Menu;

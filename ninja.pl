@@ -3,8 +3,6 @@
 use common::sense;
 use open qw/:std :utf8/;
 
-#require Tk::ErrorDialog;
-
 use lib 'lib';
 use Ninja::Ext::Runtime;
 use Ninja::MainWindow;
