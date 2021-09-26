@@ -20,6 +20,7 @@ sub new {
 	}, ref $cls || $cls;
 }
 
+sub i { shift()->{i} }
 sub config { shift()->{config} }
 sub project { my ($self) = @_; $self->{config}->{project}->{$self->pwd} }
 sub root { shift()->{root} }
@@ -28,65 +29,66 @@ sub jinnee { shift()->{jinnee} }
 sub area { shift()->{area} }
 sub position { shift()->{position} }
 
-sub evt_select_all {
-	my ($entry) = @_;
-	$entry->selectionRange(0, "end");
-	$entry->icursor("end");
-}
-
-sub sec {
-	my ($self) = @_;
-	my $sections = $self->{sections};
-	my $f1 = $sections->Frame();
-		
-	my $list = $f1->Scrolled("Listbox", -scrollbars=>"oe", 
-		-exportselection => 0,
-	);
-	$list->Subwidget("yscrollbar")->configure(-width=>10);
-	$list->pack(-side => 'top', -fill => 'both', -expand => 1);
-	
-	my $entry = $f1->Entry;
-	$entry->pack(-side => 'bottom', -fill => 'both');
-    
-	my $i = @{$sections->panes};
-	
-	$entry->insert('end', $self->config->{sections}{filters}[$i]);
-	$entry->bind('<Control-a>', \&evt_select_all);
-	
-    my $width = $self->config->{sections}{widths}[$i];
-	
-	$sections->add($f1, $width? (-width => $width): ());
-    
-	return $list, $entry, $f1;
-}
 
 sub construct {
 	my ($self) = @_;
 	
-	$self->config->load;
+	my $config = $self->config->load;
 	
 	use Tcl;
-	my $i = Tcl->new;
+	$self->{i} = my $i = Tcl->new;
 	$i->SetVar("argv", Tcl::GLOBAL_ONLY);
 	$i->SetVar("tcl_interactive", 0, Tcl::GLOBAL_ONLY);
 	$i->Init;
-		# my %config = qw/x 30/;
-	# tie %config, "Tcl::Var", $i, "config", Tcl::GLOBAL_ONLY;
-	
-	# my $x = 10;
-	# tie $x, "Tcl::Var", $i, "x", Tcl::GLOBAL_ONLY;
-	$i->SetVar("xxx", 10);
-	$i->SetVar2("config", "x", 30);
-	
-	$i->EvalFile("lib/Ninja/tk/main-window.tcl");
-	
-	
-	
-	while(my $wid = eval { $i->invoke(qw/ winfo id . /) }) {
-		#warn "wid: ", $wid, " k: ", $k++;
-		$i->DoOneEvent(0);
-	}
 
+	$i->EvalFile("lib/Ninja/tk/main-window.tcl");
+
+	::msg "config load", $config;
+	
+	# $i->CreateCommand("::perl::config", sub {
+		# my @path = split /./, $_[0];
+		# my $c = $config;
+		
+		# if(@_ == 1) {
+			# for(@path) {
+				# if(ref $c eq "HASH") { $c = $c->{$_} }
+				# elsif(ref $c eq "ARRAY") { $c = $c->[$_] }
+				# else { return undef; }
+			# }
+			
+			# return $c;
+		# }
+		
+		# my $last = pop @path;
+		# for(@path) {
+			# if(ref $c eq "HASH") { $c = $c->{$_} }
+			# elsif(ref $c eq "ARRAY") { $c = $c->[$_] }
+			# else { return undef; }
+		# }
+		# return;
+	# });
+
+	$i->icall(qw/wm geometry ./, $config->{geometry}) if $config->{geometry};
+	my @sec = qw/packages classes categories methods/;
+	do { $i->icall(".$sec[$_].filter", qw/insert end/, $config->{sections}{filters}[$_]) for 0..3 } if $config->{sections}{filters};
+	do { $i->icall(qw/.sections paneconfigure/, ".$sec[$_]", "-width", $config->{sections}{widths}[$_]) for 0..2 } if $config->{sections}{widths};
+	$i->icall(qw/.sections configure -height /, $config->{sections}->{height}) if $config->{sections}->{height};
+	
+	#my $sigint = $SIG{INT};
+	#$SIG{INT} = sub { $i->Eval("destroy ."); $sigint->(@_) };
+	
+	$i->CreateCommand("::perl::on_window_destroy", sub {
+		$config->{geometry} = $i->icall(qw/wm geometry ./);
+		$config->{sections}{filters}[$_] = $i->Eval(".$sec[$_].filter get") for 0..3;
+		$config->{sections}{widths}[$_] = $i->Eval("winfo width .$sec[$_]") for 0..2;
+		$config->{sections}->{height} = $i->Eval("winfo height .sections");
+		::msg "config save", $config;
+		$config->save;
+	});
+	
+	#$self->{selectors} = Ninja::SelectorBoxes->new(main => $self);
+	
+	$i->Eval("tkwait window .");
 	
 	return $self;
 	
@@ -139,23 +141,17 @@ sub construct {
 	MainLoop;
 }
 
-
-sub DESTROY {
-	my ($self) = @_;
-	$self->close;
-}
-
 sub close {
 	my ($self) = @_;
 	
-	return $self if $self->{closed};
+	return $self if !defined $self or $self->{closed};
 	$self->{closed} = 1;
 	
 	
 	my $config = $self->config;
 	my $sections = $self->{sections};
 
-    $config->{root}->{geometry} = $self->root->geometry;
+    $config->{root}->{geometry} = $self->i->Eval("wm geometry .") || "350x250+300+300";
     
     $config->{sections}->{height} = $sections->height;
 
