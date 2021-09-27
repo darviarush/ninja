@@ -50,15 +50,16 @@ a save
 # method
 
 								
-"x.log" asFile 
-	write "save"
+"x.log" asFile set (
+		10.1
+	) write "save"
 
 
 ^a + 1	# this is return
 
 END1
 ((a save)
-(("x.log" asFile) write "save")
+(("x.log" asFile) set 10.1 write "save")
 ((a + 1) ^))
 END2
 
