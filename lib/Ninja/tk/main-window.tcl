@@ -10,6 +10,18 @@ wm protocol . WM_DELETE_WINDOW {
 	destroy .
 }
 
+# редактирование
+bind Entry <Control-a> { event generate %W <<SelectAll>> }
+
+bind Entry <<Paste>> {
+	catch { %W delete sel.first sel.last }
+	catch {
+		%W insert insert [::tk::GetSelection %W CLIPBOARD]
+		tk::EntrySeeInsert %W
+	}
+}
+
+bind Text <Control-a> { event generate %W <<SelectAll>> }
 
 
 # puts  [ttk::style theme names]
@@ -32,11 +44,6 @@ pack [panedwindow .sections -orient horizontal] -fill both -expand 1
 
 
 # секции
-bind Entry <Control-a> {
-	%W selection range 0 end
-	%W icursor end
-}
-
 foreach i {packages classes categories methods} {
 	
 	pack [make_scrolled_y [frame .$i] [listbox .$i.list]] -side top -fill both -expand 1

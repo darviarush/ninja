@@ -3,15 +3,12 @@ package Ninja::SelectorBoxes;
 
 use common::sense;
 
-my $SEL;
-
 sub new {
-	return $SEL if $SEL;
-	
 	my $cls = shift;
-	$SEL = my $self = bless {@_}, ref $cls || $cls;
-	$self
+	bless {@_}, ref $cls || $cls
 }
+
+sub i { shift()->{main}{i} }
 
 sub package_filter { shift()->{package_filter} }
 sub class_filter { shift()->{class_filter} }
@@ -30,34 +27,32 @@ sub construct {
 	my ($self) = @_;
 	
 	my $jinnee = $self->main->jinnee;
-
-	my $package_filter = $self->{package_filter};
-	my $class_filter = $self->{class_filter};
-	my $category_filter = $self->{category_filter};
-	my $method_filter = $self->{method_filter};
-	my $packages = $self->{packages};
-	my $classes = $self->{classes};
-	my $categories = $self->{categories};
-	my $methods = $self->{methods};
-
-	$packages->bind("<Double-1>" => sub { $self->edit_action });
-	$categories->bind("<Double-1>" => sub { $self->edit_action });
+	my $i = $self->i;
 	
-	$package_filter->bind("<KeyRelease>" => sub { $self->packages_init });
+	
+	$i->call(qw/.packages.list replace {1 2 3}/);
+	
+	return $self;
+
+
+	$i->call(qw/bind packages.list <Double-1>/, sub { $self->edit_action });
+	$i->call(qw/bind categories.list <Double-1>/, sub { $self->edit_action });
+	
+	$i->call(qw/bind packages.filter <KeyRelease>/, sub { $self->packages_init });
 	$self->packages_init;
 
-	$class_filter->bind("<KeyRelease>" => sub { $self->package_select });
-	$packages->bind("<<ListboxSelect>>" => sub { $self->package_select });
+	$i->call(qw/bind classes.filter <KeyRelease>/, sub { $self->package_select });
+	$i->call(qw/bind packages.list <<ListboxSelect>>/, sub { $self->package_select });
 
-	$category_filter->bind("<KeyRelease>" => sub { $self->class_select });
-	$self->classes->bind("<<ListboxSelect>>" => sub { $self->class_select });
-
-
-	$method_filter->bind("<KeyRelease>" => sub { $self->category_select });
-	$self->categories->bind("<<ListboxSelect>>" => sub { $self->category_select });
+	$i->call(qw/bind categories.filter <KeyRelease>/, sub { $self->class_select });
+	$i->call(qw/bind packages.list <<ListboxSelect>>/, sub { $self->class_select });
 
 
-	$methods->bind("<<ListboxSelect>>" => sub { $self->method_select });
+	$i->call(qw/bind methods.filter <KeyRelease>/, sub { $self->category_select });
+	$i->call(qw/bind categories.list <<ListboxSelect>>/, sub { $self->category_select });
+
+
+	$i->call(qw/bind methods.list <<ListboxSelect>>/, sub { $self->method_select });
 
 	my $project = $self->main->project;
 	if($project) {
@@ -77,7 +72,8 @@ sub construct {
 		
 	}
 	else {
-		$packages->select_element(0); $self->package_select;
+		$i->call(); #$packages->select_element(0); 
+		$self->package_select;
 	}
 	
 	
