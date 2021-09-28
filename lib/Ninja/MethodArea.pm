@@ -9,54 +9,24 @@ sub new {
 	}, ref $cls || $cls;
 }
 
-sub area { shift()->{area} } 
-sub main { shift()->{main} }
-sub text { shift()->area->get('1.0', 'end-1c') }
-#sub text { shift()->area->get('1.0', 'end-1c') }
+sub main { shift->{main} }
+sub i { shift->{main}{i} }
+
+sub text { shift->i->Eval(".t.text get 1.0 end-1c") }
+
 
 sub construct {
 	my ($self) = @_;
 
-	$self->area->bind("<KeyRelease>" => sub { $self->update });
+	$self->i->call(qw/bind .t.text <KeyRelease>/, sub { $self->update });
 
 	my $tags = $self->main->jinnee->tags;
 
-	$self->area->tagConfigure($_ => @{$tags->{$_}}) for keys %$tags;
-
-	# удаляем дефолтный обработчик:
-	$self->area->bind('Tk::Text', '<Control-d>' => 'NoOp');
-	$self->area->bind('Tk::Text', '<Insert>' => 'NoOp');
+	$self->i->invoke(qw/.t.text tag configure/, $_ => @{$tags->{$_}}) for sort keys %$tags;
 	
 	# устанавливаем размер табуляции
 	#::msg("x", $self->area->configure("-font")->[4]->measure);
 	#$self->area->configure(-tabs => 4);
-
-	
-	# при установке курсора меняем и позицию в тулбаре
-	my $SetCursor = \&Tk::Text::SetCursor;
-	*Tk::Text::SetCursor = sub {
-		my $w = shift;
-		my $ret = $w->$SetCursor(@_);
-
-		my ($lineno, $colno) = $self->pos;
-		$colno++;
-		$self->main->position->configure(-text => "Line $lineno, Column $colno");
-		
-		$ret
-	};
-
-	# # Слова в utf8 - не выделяет - устраняем баг
-	# *Tk::Text::selectWord = sub {
-		# my ($w) = @_;
-		# my ($n, $c) = $self->pos;
-		# my $s = $self->get_current_line;
-		# pos($s) = $c;
-		# $s =~ /\w*\G\w*/g;
-		# my $from = length $`; my $to = $from + length $&;
-		# ::msg("x", $c, "$n.$from", "$n.$to", $&);
-		# $w->markSet("$n.$from", "$n.$to");
-	# };
-	
 
 	$self
 }
@@ -64,7 +34,7 @@ sub construct {
 sub update {
 	my ($self) = @_;
 
-	return $self if $self->area->cget('state') eq 'disabled';
+	return $self if $self->i->Eval(".t.text cget state") eq 'disabled';
 	
 	my $text = $self->text;
 	return $self if $text eq $self->{text};
@@ -81,7 +51,7 @@ sub update {
 	
 	if($who->{name} ne $self->{who}{name}) {
 		my $sel = $self->{type} eq "class"? $self->main->selectors->classes: $self->main->selectors->methods;
-		$sel->rename_element($sel->curselection->[0], $who);
+		$sel->rename_element($sel->index, $who);
 	}
 	
 	$self->{who} = $who;
@@ -91,33 +61,30 @@ sub update {
 
 sub disable {
 	my ($self) = @_;
-	$self->area->delete('1.0', 'end');
-	$self->area->configure(-state => 'disabled');
+	$self->i->Eval("
+		.t.text delete 1.0 end
+		.t.text configure -state disabled
+	");
 	$self
 }
 
 sub enable {
 	my ($self) = @_;
-	$self->area->configure(-state => 'normal');
+	$self->i->Eval("
+		.t.text configure -state normal
+	");
 	$self
 }
 
 sub set {
 	my ($self, $text) = @_;
-	my $pos = $self->area->index('insert');
-	$self->area->delete('1.0', 'end');
+	my $pos = $self->i->Eval(".t.text index insert");
+	$self->i->Eval(".t.text delete 1.0 end");
 	
-	my @text;
-	for my $item (@$text) {
-		$self->area->insert('end', @$item);
-		#$self->area->see('end');
-		push @text, $item->[0];
-	}
-	
+	$self->i->invoke(qw/.t.text insert end/, map { @$_ } @$text);	
 	$self->goto($pos);
 	
-	$self->{text} = join "", @text;
-	
+	$self->{text} = join "", map { $_->[0] } @$text;
 	$self
 }
 
@@ -154,39 +121,30 @@ sub to_method {
 	$self->goto("1.end");
 }
 
-sub select_all { 
-	my ($self) = @_;
-	#$self->area->SetCursor('end'); 
-	#$self->area->tagAdd('sel', '1.0', "end"); 
-	$self->area->selectAll;
-}
-
 sub dup_line_action {
 	my ($self) = @_;
 	my ($n, $c) = $self->pos;
 	
-	$self->area->insert("$n.end", "\n" . $self->area->get("$n.0", "$n.end"));
-}
-
-# получить текущую строку
-sub get_current_line {
-	my ($self) = @_;
-	my ($n, $c) = $self->pos;
-	$self->area->get("$n.0", "$n.end")
+	$self->i->Eval("
+		.t.text insert $n.end \"\\n\" [.t.text get $n.0 $n.end]
+	");
+	$self
 }
 
 # переставляет курсор
 sub goto {
 	my ($self, $pos) = @_;
-	$self->area->SetCursor($pos);
-	$self->area->focus;
+	$self->i->Eval("
+		.t.text set cursor $pos
+		.t.text focus
+	");
 	$self
 }
 
 # посиция курсора
 sub pos {
 	my ($self) = @_;
-	my $pos = $self->area->index('insert');
+	my $pos = $self->i->Eval('.t.text index insert');
 	wantarray? split(/\./, $pos): $pos;
 }
 

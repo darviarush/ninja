@@ -56,15 +56,22 @@ foreach i {packages classes categories methods} {
 # текст
 pack [make_scrolled_y [frame .t] [text .t.text -wrap word]] -fill both -expand 1
 
-#.t.text insert end [exec cat README.md]
-
-
 # тулбар
 pack [frame .f] -side bottom
 pack [label .f.position -text "Line 1, Column 1" -justify left] -side left
 
-
-
 # закрываем
 .main add .sections
 .main add .t
+
+
+# при установке курсора меняем и позицию в тулбаре
+rename ::tk::TextSetCursor ::theRealSource::TextSetCursor
+proc ::tk::TextSetCursor args {
+    set res [uplevel 1 ::theRealSource::TextSetCursor $args]
+	regexp {^(\d+)\.(\d+)} [.t.text index insert] -> line col
+	set col [expr $col + 1]
+	.f.position configure -text "Line $line, Column $col"
+	return res
+}
+

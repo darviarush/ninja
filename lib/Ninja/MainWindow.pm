@@ -20,13 +20,13 @@ sub new {
 	}, ref $cls || $cls;
 }
 
-sub i { shift()->{i} }
-sub config { shift()->{config} }
+sub i { shift->{i} }
+sub config { shift->{config} }
 sub project { my ($self) = @_; $self->{config}->{project}->{$self->pwd} }
-sub selectors { shift()->{selectors} }
-sub jinnee { shift()->{jinnee} }
-sub area { shift()->{area} }
-sub position { shift()->{position} }
+sub jinnee { shift->{jinnee} }
+sub menu { shift->{menu} }
+sub area { shift->{area} }
+sub selectors { shift->{selectors} }
 
 sub construct {
 	my ($self) = @_;
@@ -62,8 +62,8 @@ sub construct {
 	});
 	
 	$self->{menu} = Ninja::Menu->new(main=>$self)->construct;
+	$self->{area} = Ninja::MethodArea->new(main => $self)->construct;
 	$self->{selectors} = Ninja::SelectorBoxes->new(main => $self)->construct;
-	#$self->{area} = Ninja::MethodArea->new(main => $self)->construct;
 	
 	$i->Eval("tkwait window .");
 	
@@ -79,20 +79,6 @@ sub pwd {
 	Cwd::cwd()
 }
 
-
-# sub Tk::Error {
-	# my ($widget,$error,@locations) = @_;
-	
-	
-	# utf8::decode($error);
-	# print "Tk::Error: ", utf8::is_utf8($error)? 'yes': 'no', " ", $error;
-	
-	# ::p($error);
-	# ::p(@locations);
-	
-	
-# }
-
 sub errorbox {
 	my ($self, $error, @args) = @_;
 		
@@ -102,14 +88,14 @@ sub errorbox {
 sub msgbox {
 	my ($self, $message, @args) = @_;
 	
-	$self->root->MsgBox(
+	$self->i->call(qw/tk_messageBox/,
 		-icon => "info", 
 		-title => "message", 
 		-type => "ok", 
 		#-detail => "hi!", 
 		-message => $message,
 		@args
-	)->Show; 
+	);
 	
 	$self
 }

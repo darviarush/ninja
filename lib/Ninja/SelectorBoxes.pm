@@ -8,17 +8,14 @@ sub new {
 	bless {@_}, ref $cls || $cls
 }
 
-sub i { shift()->{main}{i} }
+sub main { shift->{main} }
+sub i { shift->{main}{i} }
 
-sub package_filter { shift()->{package_filter} }
-sub class_filter { shift()->{class_filter} }
-sub category_filter { shift()->{category_filter} }
-sub method_filter { shift()->{method_filter} }
-sub packages { shift()->{packages} }
-sub classes { shift()->{classes} }
-sub categories { shift()->{categories} }
-sub methods { shift()->{methods} }
-sub main { shift()->{main} }
+sub packages { shift->{packages} }
+sub classes { shift->{classes} }
+sub categories { shift->{categories} }
+sub methods { shift->{methods} }
+
 sub sections { return qw/packages classes categories methods/ }
 sub singular { return qw/package class category method/ }
 
@@ -29,30 +26,28 @@ sub construct {
 	my $jinnee = $self->main->jinnee;
 	my $i = $self->i;
 	
-	
-	$i->call(qw/.packages.list replace {1 2 3}/);
-	
-	return $self;
+	for my $name ($self->sections) {
+		$self->{$name} = Nunja::Tk::Listbox->new(frame=>".$name", i=>$i);
+	}
 
-
-	$i->call(qw/bind packages.list <Double-1>/, sub { $self->edit_action });
-	$i->call(qw/bind categories.list <Double-1>/, sub { $self->edit_action });
+	$i->call(qw/bind .packages.list <Double-1>/, sub { $self->edit_action });
+	$i->call(qw/bind .categories.list <Double-1>/, sub { $self->edit_action });
 	
-	$i->call(qw/bind packages.filter <KeyRelease>/, sub { $self->packages_init });
+	$i->call(qw/bind .packages.filter <KeyRelease>/, sub { $self->packages_init });
 	$self->packages_init;
 
-	$i->call(qw/bind classes.filter <KeyRelease>/, sub { $self->package_select });
-	$i->call(qw/bind packages.list <<ListboxSelect>>/, sub { $self->package_select });
+	$i->call(qw/bind .classes.filter <KeyRelease>/, sub { $self->package_select });
+	$i->call(qw/bind .packages.list <<ListboxSelect>>/, sub { $self->package_select });
 
-	$i->call(qw/bind categories.filter <KeyRelease>/, sub { $self->class_select });
-	$i->call(qw/bind packages.list <<ListboxSelect>>/, sub { $self->class_select });
-
-
-	$i->call(qw/bind methods.filter <KeyRelease>/, sub { $self->category_select });
-	$i->call(qw/bind categories.list <<ListboxSelect>>/, sub { $self->category_select });
+	$i->call(qw/bind .categories.filter <KeyRelease>/, sub { $self->class_select });
+	$i->call(qw/bind .packages.list <<ListboxSelect>>/, sub { $self->class_select });
 
 
-	$i->call(qw/bind methods.list <<ListboxSelect>>/, sub { $self->method_select });
+	$i->call(qw/bind .methods.filter <KeyRelease>/, sub { $self->category_select });
+	$i->call(qw/bind .categories.list <<ListboxSelect>>/, sub { $self->category_select });
+
+
+	$i->call(qw/bind .methods.list <<ListboxSelect>>/, sub { $self->method_select });
 
 	my $project = $self->main->project;
 	if($project) {
@@ -72,7 +67,7 @@ sub construct {
 		
 	}
 	else {
-		$i->call(); #$packages->select_element(0); 
+		$self->packages->select_element(0); 
 		$self->package_select;
 	}
 	
@@ -81,12 +76,33 @@ sub construct {
 }
 
 
-package Tk::Listbox {
+package Nunja::Tk::Listbox {
 	# расширяем листбокс
+	sub new {
+		my $cls = shift;
+		my $self = bless {
+			HRAN => [],		# доп-информация к элементам
+			name => "?",	# имя виджета
+			frame => "?",	# имя фрейма виджета
+			i => undef, 	# интерпретатор Tcl
+			@_,
+		}, ref $cls || $cls;
+		
+		$self->{name} = "$self->{frame}.list";
+		$self
+	}
+	
+	sub i { shift->{i} }
+	sub name { shift->{name} }
+	sub frame { shift->{frame} }
+	sub delete { my $self = shift; $self->i->invoke($self->name, qw/delete/, @_); $self }
+	sub insert { my $self = shift; $self->i->invoke($self->name, qw/insert/, @_); $self }
+	sub index { my ($self, $idx) = @_; $self->i->invoke($self->name, qw/index/, $idx // "active") }
+	
 	sub sel {
 		my ($self) = @_;
 		#::trace("sel");
-		$self->{HRAN}[ $self->curselection->[0] ]
+		$self->{HRAN}[ $self->index ]
 	}
 
 	sub list {
@@ -99,6 +115,7 @@ package Tk::Listbox {
 		$self->delete(0, "end");
 		$self->{HRAN} = [@_];
 		$self->insert(0, map { $_->{name} } @_);
+		$self
 	}
 	
 	sub insert_element {
@@ -106,6 +123,7 @@ package Tk::Listbox {
 		$self->insert($idx, $elem->{name});
 		$self->select_element($idx);
 		splice @{$self->{HRAN}}, $idx, 0, $elem;
+		$self
 	}
 	
 	sub rename_element {
@@ -114,6 +132,7 @@ package Tk::Listbox {
 		$self->insert($idx, $elem->{name});
 		$self->select_element($idx);
 		$self->{HRAN}[$idx] = $elem;
+		$self
 	}
 	
 	sub delete_element {
@@ -125,36 +144,48 @@ package Tk::Listbox {
 	
 	sub select_element {
 		my ($self, $index) = @_;
-		my $idx = $self->curselection;
-		$self->selectionClear($idx->[0]) if @$idx;
-		$self->activate($index);
-		$self->selectionSet($index);
+		
+		my $n = $self->{name};
+		$self->i->Eval("
+			# $n selection clear [$n curselection]
+			$n activate $index
+			# $n selection set $index
+		");
+		$self
 	}
 	
 	sub _entry {
-		my ($self, $main, $cb) = @_;
-		my $idx = $self->curselection->[0];
-		my $box = $self->bbox($idx);
-		my $entry = $self->Entry(-borderwidth=>0, -highlightthickness=>1);
-		$entry->bind("<Return>" => sub { 
-			eval { $cb->($entry->get, $idx, $self); };
-			$main->errorbox($@) if $@;
-			$entry->destroy;
+		my ($self, $cb) = @_;
+		
+		my $n = $self->{name};
+		$self->i->Eval("
+			entry $n.s  -borderwidth 0 -highlightthickness 1
+			bind $n.s  <Escape> {destroy $n.s }
+			$n.s  insert 0 [$n get [$n index active]]
+			$n.s  selection range 0 end
+			$n.s  icursor end
+			set box [$n bbox [$n index active]]
+			$n.s  place -relx 0 -y \$box(1) -relwidth 1 -width -1
+			$n.s  focus
+		");
+		$self->i->call(qw/bind $n.s  <Return>/, sub { 
+			$cb->($self->i->invoke("$n.s", "get"), $self);
+			$self->i->invoke("destroy", "$n.s");
+			return;
 		});
-		$entry->bind("<Escape>" => sub { $entry->destroy });
-		$entry->insert(0, $self->get($idx));
-		$entry->selectionRange(0, "end");
-		$entry->icursor("end");
-		$entry->place(-relx=>0, -y=>$box->[1], -relwidth=>1, -width=>-1);
-		$entry->focus;
-		#$entry->grab;
 	}
+	
+	sub filter {
+		my ($self) = @_;
+		$self->i->invoke("$self->{frame}.filter", "get");
+	}
+
 }
 
 # событие инициализации пакетов
 sub packages_init {
 	my ($self) = @_;
-	my $re = $self->package_filter->get;
+	my $re = $self->packages->filter;
 	$self->packages->replace(grep { $_->{name} =~ /$re/i } +{name => "*", all => 1}, $self->main->jinnee->package_list);
 	$self
 }
@@ -166,7 +197,7 @@ sub package_select {
 	
 	$self->packages_init, $self->packages->select_element(0) if $package->{name} eq "*";
 	
-	my $re = $self->class_filter->get;
+	my $re = $self->classes->filter;
 	$self->classes->replace(grep { $_->{name} =~ /$re/i } $self->main->jinnee->class_list($package));
 	$self->categories->replace;
 	$self->methods->replace;
@@ -182,7 +213,7 @@ sub class_select {
 	$self->new_action_class(-1), return if !@{$self->classes->list};
 	
 	my $class = $self->classes->sel;
-	my $re = $self->category_filter->get;
+	my $re = $self->categories->filter;
 	$self->categories->replace(grep { $_->{name} =~ /$re/i } +{name => "*", path => $class->{path}, all => 1}, $self->main->jinnee->category_list($class));
 	$self->methods->replace;
 	$self->main->area->to_class($self->classes->sel);
@@ -193,7 +224,7 @@ sub class_select {
 
 sub category_select {
 	my ($self) = @_;
-	my $re = $self->method_filter->get;
+	my $re = $self->methods->filter;
 	$self->methods->replace(grep { $_->{name} =~ /$re/i } $self->main->jinnee->method_list($self->categories->sel));
 	$self->main->area->disable;
 	$self->{section} = "categories";
@@ -217,7 +248,7 @@ sub method_select {
 sub who {
 	my ($self) = @_;
 	my $section = $self->{section};	
-	return $section, $self->$section->curselection->[0];
+	return $section, $self->$section->index;
 }
 
 sub new_action_class {
@@ -252,7 +283,7 @@ sub new_action {
 	
 	
 	if($type eq "packages") {
-		$self->packages->_entry($self->main, sub {
+		$self->packages->_entry(sub {
 			my $package = $jinnee->package_new(shift);
 			$self->packages->insert_element($idx+1, $package);
 			$self->package_select;
@@ -262,7 +293,7 @@ sub new_action {
 	$self->new_action_class($idx) if $type eq "classes";
 	
 	if($type eq "categories") {
-		$self->categories->_entry($self->main, sub {
+		$self->categories->_entry(sub {
 			my $class = $self->classes->sel;
 			my $category = $jinnee->category_new(shift, $class);
 			$self->categories->insert_element($idx+1, $category);
@@ -279,11 +310,11 @@ sub edit_action {
 	my $jinnee = $self->main->jinnee;
 	my ($type, $idx) = $self->who;
 	
-	$self->packages->_entry($self->main, sub {
+	$self->packages->_entry(sub {
 		$self->packages->rename_element($idx, $jinnee->package_rename(shift, $self->packages->sel));
 	}) if $type eq "packages" and !$self->packages->sel->{all};
 
-	$self->categories->_entry($self->main, sub {
+	$self->categories->_entry(sub {
 		$self->categories->rename_element($idx, $jinnee->category_rename(shift, $self->categories->sel));
 	}) if $type eq "categories" and !$self->categories->sel->{all};
 	
