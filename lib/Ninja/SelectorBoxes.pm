@@ -27,7 +27,7 @@ sub construct {
 	my $i = $self->i;
 	
 	for my $name ($self->sections) {
-		$self->{$name} = Nunja::Tk::Listbox->new(frame=>".$name", i=>$i);
+		$self->{$name} = Ninja::Tk::Listbox->new(frame=>".$name", i=>$i);
 	}
 
 	$i->call(qw/bind .packages.list <Double-1>/, sub { $self->edit_action });
@@ -40,7 +40,7 @@ sub construct {
 	$i->call(qw/bind .packages.list <<ListboxSelect>>/, sub { $self->package_select });
 
 	$i->call(qw/bind .categories.filter <KeyRelease>/, sub { $self->class_select });
-	$i->call(qw/bind .packages.list <<ListboxSelect>>/, sub { $self->class_select });
+	$i->call(qw/bind .classes.list <<ListboxSelect>>/, sub { $self->class_select });
 
 
 	$i->call(qw/bind .methods.filter <KeyRelease>/, sub { $self->category_select });
@@ -49,17 +49,18 @@ sub construct {
 
 	$i->call(qw/bind .methods.list <<ListboxSelect>>/, sub { $self->method_select });
 
-	my $project = $self->main->project;
-	if($project) {
+	my $selectors = $self->main->project->{selectors};
+	if(0 + %$selectors) {
 		my $i;
 		for my $section ($self->sections) {
 			my $sec;
 			my $singular = ($self->singular)[$i];
-			if(@{$sec = $project->{selectors}->{$singular}}) {
+			if(@{$sec = $selectors->{$singular}}) {
 				last if @{$self->{$section}->list} <= $sec->[0];
 				$self->{$section}->select_element($sec->[0]);
 				my $meth = "${singular}_select";
-				$self->$meth;
+				#$self->$meth;
+				::msg $meth;
 			}
 			$i++;
 		}
@@ -76,7 +77,7 @@ sub construct {
 }
 
 
-package Nunja::Tk::Listbox {
+package Ninja::Tk::Listbox {
 	# расширяем листбокс
 	sub new {
 		my $cls = shift;
@@ -97,7 +98,15 @@ package Nunja::Tk::Listbox {
 	sub frame { shift->{frame} }
 	sub delete { my $self = shift; $self->i->invoke($self->name, qw/delete/, @_); $self }
 	sub insert { my $self = shift; $self->i->invoke($self->name, qw/insert/, @_); $self }
-	sub index { my ($self, $idx) = @_; $self->i->invoke($self->name, qw/index/, $idx // "active") }
+	sub index { my ($self, $idx) = @_; 
+		# anchor
+		#$idx //= 'anchor'; 
+		#$self->i->Eval("$self->{name} index $idx")
+		#my $focus = $self->i->Eval("focus");
+		#die "index: окно $self->{name} должно быть в фокусе, однако в фокусе $focus" if $focus ne $self->{name};
+		
+		$self->i->Eval("lindex [$self->{name} curselection] 0") 
+	}
 	
 	sub sel {
 		my ($self) = @_;
@@ -146,11 +155,18 @@ package Nunja::Tk::Listbox {
 		my ($self, $index) = @_;
 		
 		my $n = $self->{name};
+		::msg "select_element1 $n $index";
+		
 		$self->i->Eval("
-			# $n selection clear [$n curselection]
+			# focus $n
+			$n selection clear 0 end
 			$n activate $index
-			# $n selection set $index
+			$n selection set active
+			$n see active
 		");
+		
+		::msg "select_element $n $index",  $self->sel;
+		
 		$self
 	}
 	
@@ -182,9 +198,19 @@ package Nunja::Tk::Listbox {
 
 }
 
+# выбрана секция
+sub select_section {
+	my ($self, $section) = @_;
+	$self->{section} = $section;
+	$self->i->invoke(qw/.f.who configure -text/, $section);
+	::msg "select_section", $section, $self->$section->sel;
+	$self
+}
+
 # событие инициализации пакетов
 sub packages_init {
 	my ($self) = @_;
+	::msg "- " . (caller(0))[3];
 	my $re = $self->packages->filter;
 	$self->packages->replace(grep { $_->{name} =~ /$re/i } +{name => "*", all => 1}, $self->main->jinnee->package_list);
 	$self
@@ -194,8 +220,10 @@ sub packages_init {
 sub package_select {
 	my ($self) = @_;
 	my $package = $self->packages->sel;
+	::msg "- " . (caller(0))[3], $package;
+	::trace;
 	
-	$self->packages_init, $self->packages->select_element(0) if $package->{name} eq "*";
+	#$self->packages_init, $self->packages->select_element(0) if $package->{name} eq "*";
 	
 	my $re = $self->classes->filter;
 	$self->classes->replace(grep { $_->{name} =~ /$re/i } $self->main->jinnee->class_list($package));
@@ -203,42 +231,46 @@ sub package_select {
 	$self->methods->replace;
 	$self->main->area->disable;
 	
-	$self->{section} = "packages";
+	$self->select_section("packages");
 	$self
 }
 
 sub class_select {
 	my ($self) = @_;
 	
+	
 	$self->new_action_class(-1), return if !@{$self->classes->list};
 	
 	my $class = $self->classes->sel;
+	::msg "- " . (caller(0))[3], $class;
+	
 	my $re = $self->categories->filter;
 	$self->categories->replace(grep { $_->{name} =~ /$re/i } +{name => "*", path => $class->{path}, all => 1}, $self->main->jinnee->category_list($class));
 	$self->methods->replace;
-	$self->main->area->to_class($self->classes->sel);
+	$self->main->area->to_class($class);
 	
-	$self->{section} = "classes";
+	$self->select_section("classes");
 	$self
 }
 
 sub category_select {
 	my ($self) = @_;
+	::msg "- " . (caller(0))[3];
 	my $re = $self->methods->filter;
 	$self->methods->replace(grep { $_->{name} =~ /$re/i } $self->main->jinnee->method_list($self->categories->sel));
 	$self->main->area->disable;
-	$self->{section} = "categories";
+	$self->select_section("categories");
 	$self
 }
 
 sub method_select {
 	my ($self) = @_;
-	
+	::msg "- " . (caller(0))[3];
 	$self->new_action_method(-1), return if !@{$self->methods->list};
 	
 	$self->main->area->to_method($self->methods->sel);
 	
-	$self->{section} = "methods";
+	$self->select_section("methods");
 	$self
 }
 

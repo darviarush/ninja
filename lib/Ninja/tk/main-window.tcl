@@ -30,6 +30,12 @@ bind Text <Control-a> { event generate %W <<SelectAll>> }
 # # default
 # ttk::style theme use classic
 
+# статусбар
+pack [frame .f] -side bottom -fill x
+pack [label .f.position -text "Line 1, Column 1" ] -side left
+pack [label .f.who -text "packages" ] -side right
+
+
 proc make_scrolled_y {f w} {
 	scrollbar $f.scrollbar  -orient vertical -width 10 -command "$w yview"
 	$w configure -yscrollcommand "$f.scrollbar set"
@@ -38,17 +44,16 @@ proc make_scrolled_y {f w} {
 	return $f
 }
 
-
 pack [panedwindow .main -orient vertical] -fill both -expand 1
 pack [panedwindow .sections -orient horizontal] -fill both -expand 1
-
 
 # секции
 foreach i {packages classes categories methods} {
 	
-	pack [make_scrolled_y [frame .$i] [listbox .$i.list]] -side top -fill both -expand 1
-	
-	pack [entry .$i.filter] -side bottom -fill both
+	frame .$i
+	pack [entry .$i.filter] -side bottom -fill x
+	# FIXME: -activestyle none
+	pack [make_scrolled_y .$i [listbox .$i.list -selectmode single]] -side top -fill both -expand 1
 	
 	.sections add .$i
 }
@@ -56,13 +61,11 @@ foreach i {packages classes categories methods} {
 # текст
 pack [make_scrolled_y [frame .t] [text .t.text -wrap word]] -fill both -expand 1
 
-# тулбар
-pack [frame .f] -side bottom
-pack [label .f.position -text "Line 1, Column 1" -justify left] -side left
 
-# закрываем
 .main add .sections
 .main add .t
+
+
 
 
 # при установке курсора меняем и позицию в тулбаре

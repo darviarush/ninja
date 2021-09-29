@@ -4,7 +4,7 @@ package Ninja::Config;
 use common::sense;
 use JSON::XS;
 
-my $json = JSON::XS->new->canonical->allow_nonref->pretty(1);
+my $json = JSON::XS->new->utf8->canonical->allow_nonref->pretty(1);
 
 sub new {
 	my $cls = shift;
@@ -49,10 +49,16 @@ sub save {
 sub at {
 	my ($self, $path, $default) = @_;
 	my $s = $self;
-	my @path = split /\//, $path;
+	my @path = @$path;
 	my $last = pop @path;
-	$s = $s->{$_} for @path;
+	$s = $s->{$_} //= {} for @path;
 	$s->{$last} //= $default
+}
+
+sub clear {
+	my ($self) = @_;
+	%$self = (path => $self->{path});
+	$self
 }
 
 

@@ -94,9 +94,7 @@ sub cascade {
 sub command {
 	my ($self, $label, $key_default, $command) = @_;
 	
-	my $path = join "/", @{$self->{PATH_LABEL}};
-	
-	my $key = $self->main->config->at("menu/$path", $key_default);
+	my $key = $self->main->config->at(["menu", @{$self->{PATH_LABEL}}, $label], $key_default);
 	
 	$self->i->call($self->top, qw/add command/, -label => $label, -accelerator => $key, -command => $command);
 	

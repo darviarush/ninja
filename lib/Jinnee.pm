@@ -366,10 +366,11 @@ sub lex {
 		# a unary method b
 		# a method -b
 		elsif($x->[1] eq "method") {
-			my $is_expression = is_expression($prev, "au");
+			
+			my $is_expression = is_expression($prev, "au)");
 
 			if($is_expression && (
-				is_expression($next, "a)")
+				is_expression($next, "a(")
 				|| is_expression($next, "o") && do {
 					my $abs_next = $ret->[$i+1];
 					my $after_next = $ret->[$i+3];
@@ -378,6 +379,8 @@ sub lex {
 			)) {}
 			elsif($is_expression && is_expression($next, "mon)\$")) { $x->[1] = "unary" }
 			else { $x->[1] = "error" }
+			
+			#::msg "method", {prev=>$prev, next=>$next, m=>$x, is_expression=>$is_expression, n=>is_expression($next, "a)")};
 		}
 		
 		$prev = $ret->[$i] if $ret->[$i][1] !~ /^(space|newline|remark)\z/;

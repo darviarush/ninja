@@ -22,7 +22,7 @@ sub new {
 
 sub i { shift->{i} }
 sub config { shift->{config} }
-sub project { my ($self) = @_; $self->{config}->{project}->{$self->pwd} }
+sub project { my ($self) = @_; $self->{config}->{project}->{$self->pwd} //= {} }
 sub jinnee { shift->{jinnee} }
 sub menu { shift->{menu} }
 sub area { shift->{area} }
@@ -42,21 +42,27 @@ sub construct {
 	$i->EvalFile("lib/Ninja/tk/main-window.tcl");
 
 	::msg "config load", $config;
+	my $project = $self->project;
 
-	$i->icall(qw/wm geometry ./, $config->{geometry}) if $config->{geometry};
+	$i->icall(qw/wm geometry ./, $project->{geometry}) if $project->{geometry};
 	my @sec = qw/packages classes categories methods/;
-	do { $i->icall(".$sec[$_].filter", qw/insert end/, $config->{sections}{filters}[$_]) for 0..3 } if $config->{sections}{filters};
-	do { $i->icall(qw/.sections paneconfigure/, ".$sec[$_]", "-width", $config->{sections}{widths}[$_]) for 0..2 } if $config->{sections}{widths};
-	$i->icall(qw/.sections configure -height /, $config->{sections}->{height}) if $config->{sections}->{height};
+	do { $i->icall(".$sec[$_].filter", qw/insert end/, $project->{sections}{filters}[$_]) for 0..3 } if $project->{sections}{filters};
+	do { $i->icall(qw/.sections paneconfigure/, ".$sec[$_]", "-width", $project->{sections}{widths}[$_]) for 0..2 } if $project->{sections}{widths};
+	$i->icall(qw/.sections configure -height /, $project->{sections}->{height}) if $project->{sections}->{height};
 	
 	#my $sigint = $SIG{INT};
 	#$SIG{INT} = sub { $i->Eval("destroy ."); $sigint->(@_) };
 	
 	$i->CreateCommand("::perl::on_window_destroy", sub {
-		$config->{geometry} = $i->icall(qw/wm geometry ./);
-		$config->{sections}{filters}[$_] = $i->Eval(".$sec[$_].filter get") for 0..3;
-		$config->{sections}{widths}[$_] = $i->Eval("winfo width .$sec[$_]") for 0..2;
-		$config->{sections}->{height} = $i->Eval("winfo height .sections");
+		%$project = ();
+		
+		$project->{geometry} = $i->icall(qw/wm geometry ./);
+		$project->{sections}{filters}[$_] = $i->Eval(".$sec[$_].filter get") for 0..3;
+		$project->{sections}{widths}[$_] = $i->Eval("winfo width .$sec[$_]") for 0..2;
+		$project->{sections}->{height} = $i->Eval("winfo height .sections");
+		
+		#$project->{selectors}{category} =  if ;
+		
 		::msg "config save", $config;
 		$config->save;
 	});

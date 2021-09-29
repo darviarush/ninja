@@ -34,7 +34,7 @@ sub construct {
 sub update {
 	my ($self) = @_;
 
-	return $self if $self->i->Eval(".t.text cget state") eq 'disabled';
+	return $self if $self->i->Eval(".t.text cget -state") eq 'disabled';
 	
 	my $text = $self->text;
 	return $self if $text eq $self->{text};
@@ -64,6 +64,7 @@ sub disable {
 	$self->i->Eval("
 		.t.text delete 1.0 end
 		.t.text configure -state disabled
+		.f.position configure -text {}
 	");
 	$self
 }
@@ -81,7 +82,7 @@ sub set {
 	my $pos = $self->i->Eval(".t.text index insert");
 	$self->i->Eval(".t.text delete 1.0 end");
 	
-	$self->i->invoke(qw/.t.text insert end/, map { @$_ } @$text);	
+	$self->i->invoke(qw/.t.text insert end/, @$_) for @$text;
 	$self->goto($pos);
 	
 	$self->{text} = join "", map { $_->[0] } @$text;
@@ -134,9 +135,10 @@ sub dup_line_action {
 # переставляет курсор
 sub goto {
 	my ($self, $pos) = @_;
+	
 	$self->i->Eval("
-		.t.text set cursor $pos
-		.t.text focus
+		tk::TextSetCursor .t.text $pos
+		focus .t.text
 	");
 	$self
 }

@@ -1,0 +1,4 @@
+Nil subclass Array
+
+length = 0
+ref = Ref to +[A]
