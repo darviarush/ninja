@@ -30,24 +30,24 @@ sub construct {
 		$self->{$name} = Ninja::Tk::Listbox->new(frame=>".$name", i=>$i);
 	}
 
-	$i->call(qw/bind .packages.list <Double-1>/, sub { $self->edit_action });
-	$i->call(qw/bind .categories.list <Double-1>/, sub { $self->edit_action });
+	# $i->call(qw/bind .packages.list <Double-1>/, sub { $self->edit_action });
+	# $i->call(qw/bind .categories.list <Double-1>/, sub { $self->edit_action });
 	
-	$i->call(qw/bind .packages.filter <KeyRelease>/, sub { $self->packages_init });
+	# $i->call(qw/bind .packages.filter <KeyRelease>/, sub { $self->packages_init });
 	$self->packages_init;
 
-	$i->call(qw/bind .classes.filter <KeyRelease>/, sub { $self->package_select });
-	$i->call(qw/bind .packages.list <<ListboxSelect>>/, sub { $self->package_select });
+	# $i->call(qw/bind .classes.filter <KeyRelease>/, sub { $self->package_select });
+	# $i->call(qw/bind .packages.list <<ListboxSelect>>/, sub { $self->package_select });
 
-	$i->call(qw/bind .categories.filter <KeyRelease>/, sub { $self->class_select });
-	$i->call(qw/bind .classes.list <<ListboxSelect>>/, sub { $self->class_select });
-
-
-	$i->call(qw/bind .methods.filter <KeyRelease>/, sub { $self->category_select });
-	$i->call(qw/bind .categories.list <<ListboxSelect>>/, sub { $self->category_select });
+	# $i->call(qw/bind .categories.filter <KeyRelease>/, sub { $self->class_select });
+	# $i->call(qw/bind .classes.list <<ListboxSelect>>/, sub { $self->class_select });
 
 
-	$i->call(qw/bind .methods.list <<ListboxSelect>>/, sub { $self->method_select });
+	# $i->call(qw/bind .methods.filter <KeyRelease>/, sub { $self->category_select });
+	# $i->call(qw/bind .categories.list <<ListboxSelect>>/, sub { $self->category_select });
+
+
+	# $i->call(qw/bind .methods.list <<ListboxSelect>>/, sub { $self->method_select });
 
 	my $selectors = $self->main->project->{selectors};
 	if(0 + %$selectors) {
@@ -184,7 +184,7 @@ package Ninja::Tk::Listbox {
 			$n.s  place -relx 0 -y \$box(1) -relwidth 1 -width -1
 			$n.s  focus
 		");
-		$self->i->call(qw/bind $n.s  <Return>/, sub { 
+		$self->i->call("bind", "$n.s", "<Return>", sub { 
 			$cb->($self->i->invoke("$n.s", "get"), $self);
 			$self->i->invoke("destroy", "$n.s");
 			return;
