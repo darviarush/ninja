@@ -35,7 +35,7 @@ pack [frame .f] -side bottom -fill x
 pack [label .f.position -text "Line 1, Column 1" ] -side left
 pack [label .f.who -text "packages" ] -side right
 
-
+# делаем вертикальный скроллбар. f - фрейм с виджетом w для которого скроллбар и делается 
 proc make_scrolled_y {f w} {
 	scrollbar $f.scrollbar  -orient vertical -width 10 -command "$w yview"
 	$w configure -yscrollcommand "$f.scrollbar set"
@@ -47,6 +47,28 @@ proc make_scrolled_y {f w} {
 pack [panedwindow .main -orient vertical] -fill both -expand 1
 pack [panedwindow .sections -orient horizontal] -fill both -expand 1
 
+# при нажатии клавиши в списке перебрасываем её в фильтр
+proc key_to_filter {w K} {
+	regexp {^\.(\w+)} $w -> i
+	puts ".$i key = $K"
+	
+	switch -regexp $K {
+		^[a-zA-Z0-9]$ {
+			focus .$i.filter
+			.$i.filter insert end $K
+		}
+		Left|Right|Down|Up {
+			focus .$i.filter
+		}
+	}
+	
+	regexp {^([a-zA-Z0-9]|left|right)$} K matched
+	if {$matched == ""} {return 0}
+	focus .$i.filter
+	.$i.filter insert end $K
+	return 1
+}
+
 # секции
 foreach i {packages classes categories methods} {
 	
@@ -56,6 +78,9 @@ foreach i {packages classes categories methods} {
 	pack [make_scrolled_y .$i [listbox .$i.list -selectmode single]] -side top -fill both -expand 1
 	
 	.sections add .$i
+	
+	# при нажатии клавиши в списке перебрасываем её в фильтр
+	bind .$i.list <KeyPress> {if {[key_to_filter %W %K] == 1} {break}}
 }
 
 # текст
@@ -80,5 +105,7 @@ proc ::tk::TextSetCursor args {
 
 
 
-	bind .packages.list <<ListboxSelect>> { puts [list %W %T [.packages.list index active] ] }
-	bind .classes.list <<ListboxSelect>> { puts [list %W %T [.packages.list index active] ] }
+	bind .packages.list <<ListboxSelect>> { puts [list %W %T [%W index active] [%W curselection] [%W index anchor] ] }
+	bind .classes.list <<ListboxSelect>> { puts [list %W %T [%W index active] [%W curselection] [%W index anchor] ] }
+	
+	
