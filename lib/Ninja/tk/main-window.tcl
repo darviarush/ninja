@@ -80,20 +80,5 @@ proc ::tk::TextSetCursor args {
 
 
 
-	bind .packages.list <Double-1> { puts { %W %T  } }
-	bind .categories.list <Double-1> { puts { %W %T  } }
-	
-	bind .packages.filter <KeyRelease> { puts { %W %T  } }
-
-	bind .classes.filter <KeyRelease> { puts { %W %T  } }
-	bind .packages.list <<ListboxSelect>> { puts { %W %T  } }
-
-	bind .categories.filter <KeyRelease> { puts { %W %T  } }
-	bind .classes.list <<ListboxSelect>> { puts { %W %T  } }
-
-
-	bind .methods.filter <KeyRelease> { puts { %W %T  } }
-	bind .categories.list <<ListboxSelect>> { puts { %W %T  } }
-
-
-	bind .methods.list <<ListboxSelect>> { puts { %W %T  } }
+	bind .packages.list <<ListboxSelect>> { puts [list %W %T [.packages.list index active] ] }
+	bind .classes.list <<ListboxSelect>> { puts [list %W %T [.packages.list index active] ] }
