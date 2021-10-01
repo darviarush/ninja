@@ -98,15 +98,7 @@ package Ninja::Tk::Listbox {
 	sub frame { shift->{frame} }
 	sub delete { my $self = shift; $self->i->invoke($self->name, qw/delete/, @_); $self }
 	sub insert { my $self = shift; $self->i->invoke($self->name, qw/insert/, @_); $self }
-	sub index { my ($self, $idx) = @_; 
-		# anchor
-		#$idx //= 'anchor'; 
-		#$self->i->Eval("$self->{name} index $idx")
-		#my $focus = $self->i->Eval("focus");
-		#die "index: окно $self->{name} должно быть в фокусе, однако в фокусе $focus" if $focus ne $self->{name};
-		
-		$self->i->Eval("lindex [$self->{name} curselection] 0") 
-	}
+	sub index { my ($self) = @_; $self->i->Eval("lindex [$self->{name} curselection] 0") }
 	
 	sub sel {
 		my ($self) = @_;
@@ -155,17 +147,13 @@ package Ninja::Tk::Listbox {
 		my ($self, $index) = @_;
 		
 		my $n = $self->{name};
-		::msg "select_element1 $n $index";
-		
 		$self->i->Eval("
-			# focus $n
+			focus $n
 			$n selection clear 0 end
 			$n activate $index
 			$n selection set active
 			$n see active
 		");
-		
-		::msg "select_element $n $index",  $self->sel;
 		
 		$self
 	}

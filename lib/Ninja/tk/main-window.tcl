@@ -44,9 +44,6 @@ proc make_scrolled_y {f w} {
 	return $f
 }
 
-pack [panedwindow .main -orient vertical] -fill both -expand 1
-pack [panedwindow .sections -orient horizontal] -fill both -expand 1
-
 # при нажатии клавиши в списке перебрасываем её в фильтр
 proc key_to_filter {w K} {
 	regexp {^\.(\w+)} $w -> i
@@ -57,17 +54,17 @@ proc key_to_filter {w K} {
 			focus .$i.filter
 			.$i.filter insert end $K
 		}
-		Left|Right|Down|Up {
+		^(Left|Right|Down|Up)$ {
 			focus .$i.filter
 		}
+		default {return 0}
 	}
 	
-	regexp {^([a-zA-Z0-9]|left|right)$} K matched
-	if {$matched == ""} {return 0}
-	focus .$i.filter
-	.$i.filter insert end $K
 	return 1
 }
+
+pack [panedwindow .main -orient vertical] -fill both -expand 1
+pack [panedwindow .sections -orient horizontal] -fill both -expand 1
 
 # секции
 foreach i {packages classes categories methods} {
@@ -81,6 +78,9 @@ foreach i {packages classes categories methods} {
 	
 	# при нажатии клавиши в списке перебрасываем её в фильтр
 	bind .$i.list <KeyPress> {if {[key_to_filter %W %K] == 1} {break}}
+	# <<Selected>> срабатывает когда об этом не просят
+	# bind .$i.list <FocusIn> { %W configure -state normal }
+	# bind .$i.list <FocusOut> { %W configure -state disabled }
 }
 
 # текст
