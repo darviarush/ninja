@@ -18,6 +18,7 @@ sub methods { shift->{methods} }
 
 sub sections { return qw/packages classes categories methods/ }
 sub singular { return qw/package class category method/ }
+my %singular = map { ((sections())[$_] => (singular())[$_]) } 0..3; 
 
 # создать selector_boxes
 sub construct {
@@ -26,28 +27,27 @@ sub construct {
 	my $jinnee = $self->main->jinnee;
 	my $i = $self->i;
 	
-	for my $name ($self->sections) {
-		$self->{$name} = Ninja::Tk::Listbox->new(frame=>".$name", i=>$i);
+	for my $section ($self->sections) {
+		$self->{$section} = Ninja::Tk::Listbox->new(frame=>".$section", i=>$i);
+		#$i->call("bind", ".$name.list", "<FocusIn>", sub { $self->select_section($name) });
+		
+		$i->call("bind", ".$section.list", "<<ListboxSelect>>", sub {
+			my $x = "$singular{$section}_select";
+			::msg "$section - $self->{section} $x";
+			
+			$self->$x if $self->$section->index ne "";
+		});
 	}
 
-	# $i->call(qw/bind .packages.list <Double-1>/, sub { $self->edit_action });
-	# $i->call(qw/bind .categories.list <Double-1>/, sub { $self->edit_action });
+	$i->call(qw/bind .packages.list <Double-1>/, sub { $self->edit_action });
+	$i->call(qw/bind .categories.list <Double-1>/, sub { $self->edit_action });
 	
-	# $i->call(qw/bind .packages.filter <KeyRelease>/, sub { $self->packages_init });
+	$i->call(qw/bind .packages.filter <KeyRelease>/, sub { $self->packages_init });
+	$i->call(qw/bind .classes.filter <KeyRelease>/, sub { $self->package_select });
+	$i->call(qw/bind .categories.filter <KeyRelease>/, sub { $self->class_select });
+	$i->call(qw/bind .methods.filter <KeyRelease>/, sub { $self->category_select });
+	
 	$self->packages_init;
-
-	# $i->call(qw/bind .classes.filter <KeyRelease>/, sub { $self->package_select });
-	# $i->call(qw/bind .packages.list <<ListboxSelect>>/, sub { $self->package_select });
-
-	# $i->call(qw/bind .categories.filter <KeyRelease>/, sub { $self->class_select });
-	# $i->call(qw/bind .classes.list <<ListboxSelect>>/, sub { $self->class_select });
-
-
-	# $i->call(qw/bind .methods.filter <KeyRelease>/, sub { $self->category_select });
-	# $i->call(qw/bind .categories.list <<ListboxSelect>>/, sub { $self->category_select });
-
-
-	# $i->call(qw/bind .methods.list <<ListboxSelect>>/, sub { $self->method_select });
 
 	my $selectors = $self->main->project->{selectors};
 	if(0 + %$selectors) {
@@ -112,7 +112,7 @@ package Ninja::Tk::Listbox {
 	}
 
 	sub replace {
-		my $self = shift;		
+		my $self = shift;
 		$self->delete(0, "end");
 		$self->{HRAN} = [@_];
 		$self->insert(0, map { $_->{name} } @_);
@@ -147,12 +147,15 @@ package Ninja::Tk::Listbox {
 		my ($self, $index) = @_;
 		
 		my $n = $self->{name};
+		my $prev = $self->{prev};
+		
 		$self->i->Eval("
 			focus $n
 			$n selection clear 0 end
+			$n selection anchor $index
 			$n activate $index
-			$n selection set active
-			$n see active
+			$n selection set $index
+			$n see $index
 		");
 		
 		$self
@@ -191,7 +194,12 @@ sub select_section {
 	my ($self, $section) = @_;
 	$self->{section} = $section;
 	$self->i->invoke(qw/.f.who configure -text/, $section);
-	::msg "select_section", $section, $self->$section->sel;
+	#::msg "select_section", $section, $self->$section->sel;
+	my $listbox = $self->$section;
+	my $i = $listbox->{prev};
+	$self->i->Eval(".$section.list itemconfigure $i -background [.$section.list cget -background]") if $i ne "" && $i<@{$listbox->list};
+	$listbox->{prev} = $i = $listbox->index;
+	$self->i->Eval(".$section.list itemconfigure $i -background [.$section.list cget -selectbackground]");
 	$self
 }
 
@@ -207,6 +215,7 @@ sub packages_init {
 # событие на выбор пакета
 sub package_select {
 	my ($self) = @_;
+	
 	my $package = $self->packages->sel;
 	::msg "- " . (caller(0))[3], $package;
 	::trace;
@@ -220,12 +229,12 @@ sub package_select {
 	$self->main->area->disable;
 	
 	$self->select_section("packages");
+	
 	$self
 }
 
 sub class_select {
 	my ($self) = @_;
-	
 	
 	$self->new_action_class(-1), return if !@{$self->classes->list};
 	
@@ -238,27 +247,32 @@ sub class_select {
 	$self->main->area->to_class($class);
 	
 	$self->select_section("classes");
+	
 	$self
 }
 
 sub category_select {
 	my ($self) = @_;
+	
 	::msg "- " . (caller(0))[3];
 	my $re = $self->methods->filter;
 	$self->methods->replace(grep { $_->{name} =~ /$re/i } $self->main->jinnee->method_list($self->categories->sel));
 	$self->main->area->disable;
+	
 	$self->select_section("categories");
 	$self
 }
 
 sub method_select {
 	my ($self) = @_;
+	
 	::msg "- " . (caller(0))[3];
 	$self->new_action_method(-1), return if !@{$self->methods->list};
 	
 	$self->main->area->to_method($self->methods->sel);
-	
+
 	$self->select_section("methods");
+
 	$self
 }
 

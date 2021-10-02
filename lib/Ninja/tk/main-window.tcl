@@ -71,16 +71,12 @@ foreach i {packages classes categories methods} {
 	
 	frame .$i
 	pack [entry .$i.filter] -side bottom -fill x
-	# FIXME: -activestyle none
-	pack [make_scrolled_y .$i [listbox .$i.list -selectmode single]] -side top -fill both -expand 1
+	pack [make_scrolled_y .$i [listbox .$i.list -selectmode single -activestyle none]] -side top -fill both -expand 1
 	
 	.sections add .$i
 	
 	# при нажатии клавиши в списке перебрасываем её в фильтр
 	bind .$i.list <KeyPress> {if {[key_to_filter %W %K] == 1} {break}}
-	# <<Selected>> срабатывает когда об этом не просят
-	# bind .$i.list <FocusIn> { %W configure -state normal }
-	# bind .$i.list <FocusOut> { %W configure -state disabled }
 }
 
 # текст
@@ -105,7 +101,7 @@ proc ::tk::TextSetCursor args {
 
 
 
-	bind .packages.list <<ListboxSelect>> { puts [list %W %T [%W index active] [%W curselection] [%W index anchor] ] }
-	bind .classes.list <<ListboxSelect>> { puts [list %W %T [%W index active] [%W curselection] [%W index anchor] ] }
+	# bind .packages.list <<ListboxSelect>> { puts [list %W %T [%W index active] [%W curselection] [%W index anchor] ] }
+	# bind .classes.list <<ListboxSelect>> { puts [list %W %T [%W index active] [%W curselection] [%W index anchor] ] }
 	
 	
