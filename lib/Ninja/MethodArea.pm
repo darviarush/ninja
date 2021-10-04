@@ -139,6 +139,7 @@ sub goto {
 	$self->i->Eval("
 		tk::TextSetCursor .t.text $pos
 		focus .t.text
+		#.t.text see $pos
 	");
 	$self
 }

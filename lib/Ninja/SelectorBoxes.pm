@@ -36,6 +36,11 @@ sub construct {
 			::msg "$section - $self->{section} $x";
 			
 			$self->$x if $self->$section->index ne "";
+			
+			if($self->$section->size == 0) {
+				$self->new_action_class(-1) if $section eq "classes" && $self->{section} eq "packages";
+				$self->new_action_method(-1) if $section eq "methods" && $self->{section} eq "categories";
+			}
 		});
 	}
 
@@ -56,7 +61,7 @@ sub construct {
 			my $sec;
 			my $singular = ($self->singular)[$i];
 			if(@{$sec = $selectors->{$singular}}) {
-				last if @{$self->{$section}->list} <= $sec->[0];
+				last if $self->{$section}->size <= $sec->[0];
 				$self->{$section}->select_element($sec->[0]);
 				my $meth = "${singular}_select";
 				#$self->$meth;
@@ -71,7 +76,6 @@ sub construct {
 		$self->packages->select_element(0); 
 		$self->package_select;
 	}
-	
 	
 	$self
 }
@@ -99,16 +103,23 @@ package Ninja::Tk::Listbox {
 	sub delete { my $self = shift; $self->i->invoke($self->name, qw/delete/, @_); $self }
 	sub insert { my $self = shift; $self->i->invoke($self->name, qw/insert/, @_); $self }
 	sub index { my ($self) = @_; $self->i->Eval("lindex [$self->{name} curselection] 0") }
-	
+	sub anchor { my ($self) = @_; $self->i->Eval("$self->{name} index anchor") }
+	sub list { my ($self) = @_; $self->{HRAN} }
+	sub size { my ($self) = @_; 0+@{$self->{HRAN}} }
 	sub sel {
 		my ($self) = @_;
 		#::trace("sel");
-		$self->{HRAN}[ $self->index ]
+		my $i = $self->index;
+		die "Вначале выберите элемент списка $self->{name}" if $i eq "";
+		$self->{HRAN}[ $i ]
 	}
 
-	sub list {
+	sub asel {
 		my ($self) = @_;
-		$self->{HRAN}
+		die "Метод asel нельзя использовать если в списке $self->{name} есть выделение" if $self->index ne "";
+		my $res = $self->{HRAN}[ $self->anchor ];
+		die "anchor не учтановлен в списке $self->{name}" if !$res;
+		$res
 	}
 
 	sub replace {
@@ -140,7 +151,7 @@ package Ninja::Tk::Listbox {
 		my ($self, $idx) = @_;
 		$self->delete($idx);
 		splice @{$self->{HRAN}}, $idx, 1;
-		$self->select_element($idx==0? 0: $idx-1) if @{$self->{HRAN}};	
+		$self->select_element($idx==@{$self->{HRAN}}? $idx-1: $idx) if @{$self->{HRAN}};
 	}
 	
 	sub focus { my ($self) = @_; $self->i->Eval("focus $self->{name}"); $self }
@@ -168,13 +179,13 @@ package Ninja::Tk::Listbox {
 		my $n = $self->{name};
 		$self->i->Eval("
 			entry $n.s  -borderwidth 0 -highlightthickness 1
-			bind $n.s  <Escape> {destroy $n.s }
+			bind $n.s  <Escape> {destroy $n.s}
 			$n.s  insert 0 [$n get [$n index active]]
 			$n.s  selection range 0 end
 			$n.s  icursor end
 			set box [$n bbox [$n index active]]
-			$n.s  place -relx 0 -y \$box(1) -relwidth 1 -width -1
-			$n.s  focus
+			place $n.s -relx 0 -y [lindex \$box 1] -relwidth 1 -width -1
+			focus $n.s
 		");
 		$self->i->call("bind", "$n.s", "<Return>", sub { 
 			$cb->($self->i->invoke("$n.s", "get"), $self);
@@ -219,7 +230,6 @@ sub package_select {
 	
 	my $package = $self->packages->sel;
 	::msg "- " . (caller(0))[3], $package;
-	::trace;
 	
 	#$self->packages_init, $self->packages->select_element(0) if $package->{name} eq "*";
 	
@@ -236,8 +246,6 @@ sub package_select {
 
 sub class_select {
 	my ($self) = @_;
-	
-	$self->new_action_class(-1), return if !@{$self->classes->list};
 	
 	my $class = $self->classes->sel;
 	::msg "- " . (caller(0))[3], $class;
@@ -268,7 +276,6 @@ sub method_select {
 	my ($self) = @_;
 	
 	::msg "- " . (caller(0))[3];
-	$self->new_action_method(-1), return if !@{$self->methods->list};
 	
 	$self->main->area->to_method($self->methods->sel);
 
@@ -296,6 +303,7 @@ sub new_action_class {
 	my $class = $self->main->jinnee->class_new("-", $package);
 	$self->classes->insert_element($idx+1, $class);
 	$self->class_select;
+	$self->i->Eval("focus .t.text");
 }
 
 sub new_action_method {
@@ -329,7 +337,7 @@ sub new_action {
 	
 	if($type eq "categories") {
 		$self->categories->_entry(sub {
-			my $class = $self->classes->sel;
+			my $class = $self->classes->asel;
 			my $category = $jinnee->category_new(shift, $class);
 			$self->categories->insert_element($idx+1, $category);
 			$self->category_select;
@@ -365,13 +373,17 @@ sub delete_action {
 	if($type eq "packages" and !$self->packages->sel->{all}) {
 		$jinnee->package_erase($self->packages->sel);
 		$self->packages->delete_element($idx);
+		$self->packages->select_element($idx==$self->packages->size? $idx-1: $idx);
 		$self->package_select;
 	}
 	
 	if($type eq "classes") {
 		$jinnee->class_erase($self->classes->sel);
 		$self->classes->delete_element($idx);
-		if(!@{$self->classes->list}) { $self->package_select } else { $self->class_select }
+		if($self->classes->size == 0) {
+			$self->packages->select_element($self->packages->anchor);
+			$self->package_select;
+		} else { $self->class_select }
 	}
 		
 	if($type eq "categories" and !$self->categories->sel->{all}) {
@@ -383,7 +395,10 @@ sub delete_action {
 	if($type eq "methods") {
 		$jinnee->method_erase($self->methods->sel);
 		$self->methods->delete_element($idx);
-		if(!@{$self->methods->list}) { $self->category_select } else { $self->method_select }
+		if($self->methods->size == 0) { 
+			$self->categories->select_element($self->categories->anchor);
+			$self->category_select;
+		} else { $self->method_select }
 	}
 }
 
