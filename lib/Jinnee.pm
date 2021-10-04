@@ -33,7 +33,7 @@ sub package_list {
 	my ($self) = @_;
 		
 	map { my $inc=$_; 
-		map { +{ path => $_, name => substr $_, 1+length $inc } } $self->ls($inc)
+		map { +{ path => $_, name => $self->unescape(substr $_, 1+length $inc) } } $self->ls($inc)
 	} @{$self->{INC}}
 }
 
@@ -42,7 +42,7 @@ sub class_list {
 	my ($self, $package) = @_;
 	
 	map { my $path = $_;
-		map { +{ path => $_, name => substr $_, 1+length $path } } $self->ls($path)
+		map { +{ path => $_, name => $self->unescape(substr $_, 1+length $path) } } $self->ls($path)
 	} $package->{all}? (map { $self->ls($_) } @{$self->{INC}}): $package->{path}
 }
 
@@ -52,7 +52,7 @@ sub category_list {
 	
 	my $path = $class->{path};
 	
-	map { +{ path => $_, name => substr $_, 1+length $path } } grep { !/\/\.\$\z/ } $self->ls($path)
+	map { +{ path => $_, name => $self->unescape(substr $_, 1+length $path) } } grep { !/\/\.\$\z/ } $self->ls($path)
 }
 
 # список методов. $category может быть '*'
@@ -60,7 +60,7 @@ sub method_list {
 	my ($self, $category) = @_;
 	
 	map { my $path = $_;
-		map { +{ path => $_, name => substr $_, 1+length($path), -2 } } $self->ls($path)
+		map { +{ path => $_, name => $self->unescape(substr $_, 1+length($path), -2) } } $self->ls($path)
 	} $category->{all}? (grep { !/\/\.\$\z/ } $self->ls($category->{path})): $category->{path}
 }
 
@@ -89,7 +89,9 @@ sub class_put {
 	if($body =~ /^\w+ subclass ([A-Z]\w+)/) {
 		my $name = $1;
 		my $path = $class->{path};
-		$path =~ s!$class->{name}$!$name!;
+		my $cname = $self->escape($class->{name});
+		my $ename = $self->escape($name);
+		$path =~ s!$cname$!$ename!;
 		rename $class->{path}, $path and do {
 			$class = {name => $name, path => $path};
 		};
@@ -106,7 +108,9 @@ sub method_put {
 	if($body =~ /^\S.*/) {
 		my $name = $&;
 		my $path = $method->{path};
-		$path =~ s!$method->{name}(\.\$)$!$name$1!;
+		my $mname = $self->escape($method->{name});
+		my $ename = $self->escape($name);
+		$path =~ s!$mname(\.\$)$!$ename$1!;
 		rename $method->{path}, $path and do {
 			$method = {name => $name, path => $path};
 		};
@@ -119,7 +123,7 @@ sub method_put {
 
 sub package_new {
 	my ($self, $name) = @_;
-	my $path = $self->{INC}[$#{$self->{INC}[0]}] . "/$name";
+	my $path = $self->{INC}[$#{$self->{INC}[0]}] . "/" . $self->escape($name);
 	$self->mkpath("$path/");
 	die "Невозможно создать пакет $name ($path): $!" if !-e $path;
 	return {name => $name, path => $path};
@@ -128,21 +132,21 @@ sub package_new {
 sub package_rename {
 	my ($self, $name, $package) = @_;
 	my $path = $package->{path};
-	$path =~ s![^/]*$!$name!;
+	$path =~ s![^/]*$!$self->escape($name)!e;
 	rename $package->{path}, $path or die "Невозможно переименовать $package->{path} -> $path: $!";
 	return {name => $name, path => $path};
 }
 
 sub class_new {
 	my ($self, $name, $package) = @_;
-	my $class = {name => $name, path => "$package->{path}/$name"};
+	my $class = {name => $name, path => "$package->{path}/" . $self->escape($name)};
 	$self->class_get($class);
 	$class
 }
 
 sub category_new {
 	my ($self, $name, $class) = @_;
-	my $path = "$class->{path}/$name";
+	my $path = "$class->{path}" . $self->escape($name);
 	$self->mkpath("$path/");
 	die "Невозможно создать категорию $name ($path): $!" if !-e $path;
 	return {name => $name, path => $path};
@@ -151,14 +155,14 @@ sub category_new {
 sub category_rename {
 	my ($self, $name, $category) = @_;
 	my $path = $category->{path};
-	$path =~ s![^/]*$!$name!;
+	$path =~ s![^/]*$!$self->escape($name)!e;
 	rename $category->{path}, $path or die "Невозможно переименовать $category->{path} -> $path: $!";
 	return {name => $name, path => $path};
 }
 
 sub method_new {
 	my ($self, $name, $category) = @_;
-	my $class = {name => $name, path => "$category->{path}/$name.\$"};
+	my $class = {name => $name, path => "$category->{path}/" . $self->escape($name). ".\$"};
 	$self->method_get($class);
 	$class
 }

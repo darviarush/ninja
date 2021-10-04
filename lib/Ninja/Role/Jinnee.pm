@@ -10,6 +10,25 @@ sub new {
 	}, ref $cls || $cls;
 }
 
+#@category Переименование / в системных путях
+
+my $DIVIDE_SIGN = chr 0x2215;
+
+# эскейпит часть пути в котором не должно быть слеша
+# заменяет / на аналогичный символ юникода (U+2215)
+sub escape {
+	my ($self, $path) = @_;
+	$path =~ s!/!$DIVIDE_SIGN!oge;
+	$path
+}
+
+# заменяет юникодовский знак деления (U+2215) на слеш
+sub unescape {
+	my ($self, $path) = @_;
+	$path =~ s!$DIVIDE_SIGN!/!g;
+	$path
+}
+
 #@category Файлы
 
 # список файлов в папке, кроме .. и .

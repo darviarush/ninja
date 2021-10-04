@@ -143,6 +143,8 @@ package Ninja::Tk::Listbox {
 		$self->select_element($idx==0? 0: $idx-1) if @{$self->{HRAN}};	
 	}
 	
+	sub focus { my ($self) = @_; $self->i->Eval("focus $self->{name}"); $self }
+	
 	sub select_element {
 		my ($self, $index) = @_;
 		
@@ -150,7 +152,6 @@ package Ninja::Tk::Listbox {
 		my $prev = $self->{prev};
 		
 		$self->i->Eval("
-			focus $n
 			$n selection clear 0 end
 			$n selection anchor $index
 			$n activate $index
@@ -199,7 +200,7 @@ sub select_section {
 	my $i = $listbox->{prev};
 	$self->i->Eval(".$section.list itemconfigure $i -background [.$section.list cget -background]") if $i ne "" && $i<@{$listbox->list};
 	$listbox->{prev} = $i = $listbox->index;
-	$self->i->Eval(".$section.list itemconfigure $i -background [.$section.list cget -selectbackground]");
+	$self->i->Eval(".$section.list itemconfigure $i -background [.$section.list cget -selectbackground]") if $i ne "";
 	$self
 }
 
