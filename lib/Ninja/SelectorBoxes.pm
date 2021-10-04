@@ -118,7 +118,7 @@ package Ninja::Tk::Listbox {
 		my ($self) = @_;
 		die "Метод asel нельзя использовать если в списке $self->{name} есть выделение" if $self->index ne "";
 		my $res = $self->{HRAN}[ $self->anchor ];
-		die "anchor не учтановлен в списке $self->{name}" if !$res;
+		die "anchor не установлен в списке $self->{name}" if !$res;
 		$res
 	}
 
