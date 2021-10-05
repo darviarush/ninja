@@ -40,7 +40,7 @@ sub construct {
 	$self->cascade(project => 'Проект');
 		$self->command('Создать', "F7", sub { $main->selectors->new_action });
 		$self->command('Изменить', "F2", sub { $main->selectors->edit_action });
-		$self->command('Копировать', "F5", sub { $main->selectors->copy_action });
+		#$self->command('Копировать', "F5", sub { $main->selectors->copy_action });
 		$self->command('Удалить в корзину', "F8", sub { $main->selectors->delete_action });
 		$self->command('Восстановить из корзины', "Shift-F8", sub { $main->selectors->restore_action });
 		# $self->separator;
@@ -67,10 +67,10 @@ sub construct {
 		$self->command('Удалить строку', "Control-Delete", '%W delete {insert linestart} {insert lineend}', 'Text');
 	$self->pop;
 	
-	$self->cascade(navigation => 'Навигация');
-		$self->command('Назад', "Control-Alt-Left", sub { $main->selectors->move_back_action });
-		$self->command('Вперёд', "Control-Alt-Right", sub { $main->selectors->move_next_action });
-	$self->pop;
+	# $self->cascade(navigation => 'Навигация');
+		# $self->command('Назад', "Control-Alt-Left", sub { $main->selectors->move_back_action });
+		# $self->command('Вперёд', "Control-Alt-Right", sub { $main->selectors->move_next_action });
+	# $self->pop;
 	
 	$self
 }
