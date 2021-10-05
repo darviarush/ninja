@@ -105,6 +105,7 @@ package Ninja::Tk::Listbox {
 		#::trace("sel");
 		my $i = $self->index;
 		$i = $self->anchor if $i eq "";
+		die "Вначале выберите элемент списка $self->{name}" if $i eq "";
 		my $res = $self->{HRAN}[ $i ];
 		die "Вначале выберите элемент списка $self->{name}" if !$res;
 		$res
@@ -150,7 +151,7 @@ package Ninja::Tk::Listbox {
 		$self->select_element($idx==@{$self->{HRAN}}? $idx-1: $idx) if @{$self->{HRAN}};
 	}
 	
-	sub focus { my ($self) = @_; $self->i->Eval("focus $self->{name}"); $self }
+	#sub focus { my ($self) = @_; $self->i->Eval("focus $self->{name}"); $self }
 	
 	sub select_element {
 		my ($self, $index) = @_;
@@ -184,7 +185,7 @@ package Ninja::Tk::Listbox {
 			focus $n.s
 		");
 		$self->i->call("bind", "$n.s", "<Return>", sub { 
-			$cb->($self->i->invoke("$n.s", "get"), $self);
+			$cb->(scalar $self->i->invoke("$n.s", "get"), $self);
 			$self->i->invoke("destroy", "$n.s");
 			return;
 		});
@@ -299,7 +300,6 @@ sub new_action_class {
 	my $class = $self->main->jinnee->class_new("-", $package);
 	$self->classes->insert_element($idx+1, $class);
 	$self->class_select;
-	$self->i->Eval("focus .t.text");
 }
 
 sub new_action_method {
@@ -345,19 +345,25 @@ sub new_action {
 
 # редактировать категорию или пакет
 sub edit_action {
-	my ($self) = @_;
+	my ($self, $new_name) = @_;
 	my $jinnee = $self->main->jinnee;
 	my ($type, $idx) = $self->who;
 	
 	$self->packages->_entry(sub {
 		$self->packages->rename_element($idx, $jinnee->package_rename(shift, $self->packages->sel));
+		$self->package_select;
 	}) if $type eq "packages" and !$self->packages->sel->{all};
 
 	$self->categories->_entry(sub {
 		$self->categories->rename_element($idx, $jinnee->category_rename(shift, $self->categories->sel));
+		$self->category_select;
 	}) if $type eq "categories" and !$self->categories->sel->{all};
 	
-	$self->main->area->goto("1.end") if $type =~ /classes|methods/;
+	$self->main->area->goto("1.end"), $self->i->Eval('
+		set bg [.t.text cget -background]
+		.t.text configure -background #ccf
+		after 300 {.t.text configure -background $bg}
+	') if $type =~ /classes|methods/;
 }
 
 # удалить текущий объект

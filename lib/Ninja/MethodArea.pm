@@ -51,7 +51,9 @@ sub update {
 	
 	if($who->{name} ne $self->{who}{name}) {
 		my $sel = $self->{type} eq "class"? $self->main->selectors->classes: $self->main->selectors->methods;
-		$sel->rename_element($sel->index, $who);
+		$sel->rename_element($sel->anchor, $who);
+		my $x = "$self->{type}_select";
+		$self->main->selectors->$x;
 	}
 	
 	$self->{who} = $who;
@@ -106,6 +108,8 @@ sub to_class {
 	$self->main->errorbox($@) if $@;
 	$self->set($text);
 	$self->goto("1.end");
+	
+	$self->i->Eval("after 10 {focus .t.text}");
 }
 
 sub to_method {
@@ -123,6 +127,11 @@ sub to_method {
 	
 	$self->set($text);
 	$self->goto("1.end");
+	
+	
+	$self->i->Eval("after 100 {focus .t.text}");
+	
+	$self
 }
 
 # переставляет курсор

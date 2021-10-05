@@ -88,10 +88,11 @@ sub class_put {
 	
 	if($body =~ /^\w+ subclass ([A-Z]\w+)/) {
 		my $name = $1;
-		my $path = $class->{path};
+		my $old = my $path = $class->{path};
 		my $cname = $self->escape($class->{name});
 		my $ename = $self->escape($name);
 		$path =~ s!$cname$!$ename!;
+		undef $!;
 		rename $class->{path}, $path and do {
 			$class = {name => $name, path => $path};
 		};
@@ -131,7 +132,7 @@ sub package_new {
 
 sub package_rename {
 	my ($self, $name, $package) = @_;
-	my $path = $package->{path};
+	my $was = my $path = $package->{path};
 	$path =~ s![^/]*$!$self->escape($name)!e;
 	rename $package->{path}, $path or die "Невозможно переименовать $package->{path} -> $path: $!";
 	return {name => $name, path => $path};
@@ -146,7 +147,7 @@ sub class_new {
 
 sub category_new {
 	my ($self, $name, $class) = @_;
-	my $path = "$class->{path}" . $self->escape($name);
+	my $path = "$class->{path}/" . $self->escape($name);
 	$self->mkpath("$path/");
 	die "Невозможно создать категорию $name ($path): $!" if !-e $path;
 	return {name => $name, path => $path};
