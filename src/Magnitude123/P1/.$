@@ -1,8 +1,10 @@
 Nil subclass P1
 
-45.0 subr
+
 
 (r six)
-[ x sur mi "test" uxi ui + 10 uxo ]
+[ 
+	x sur mi "test" uxi ui + 10 uxo 
+]
 
 p zuxel 0

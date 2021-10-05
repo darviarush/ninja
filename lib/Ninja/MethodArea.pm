@@ -77,6 +77,9 @@ sub enable {
 	$self
 }
 
+sub enabled { my ($self) = @_; $self->i->Eval(".t.text cget -state") eq "normal" }
+sub disabled { my ($self) = @_; $self->i->Eval(".t.text cget -state") eq "disabled" }
+
 sub set {
 	my ($self, $text) = @_;
 	my $pos = $self->i->Eval(".t.text index insert");
@@ -120,16 +123,6 @@ sub to_method {
 	
 	$self->set($text);
 	$self->goto("1.end");
-}
-
-sub dup_line_action {
-	my ($self) = @_;
-	my ($n, $c) = $self->pos;
-	
-	$self->i->Eval("
-		.t.text insert $n.end \"\\n\" [.t.text get $n.0 $n.end]
-	");
-	$self
 }
 
 # переставляет курсор

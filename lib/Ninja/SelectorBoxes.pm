@@ -56,21 +56,15 @@ sub construct {
 
 	my $selectors = $self->main->project->{selectors};
 	if(0 + %$selectors) {
-		my $i;
 		for my $section ($self->sections) {
-			my $sec;
-			my $singular = ($self->singular)[$i];
-			if(@{$sec = $selectors->{$singular}}) {
-				last if $self->{$section}->size <= $sec->[0];
-				$self->{$section}->select_element($sec->[0]);
-				my $meth = "${singular}_select";
-				#$self->$meth;
-				::msg $meth;
-			}
-			$i++;
+			last if !exists $selectors->{$section} || $selectors->{$section} >= $self->$section->size;
+			
+			$self->$section->select_element($selectors->{$section});
+			my $meth = "$singular{$section}_select";
+			$self->$meth;
 		}
 		
-		
+		$self->main->area->goto($selectors->{areaCursor}) if $selectors->{areaCursor};
 	}
 	else {
 		$self->packages->select_element(0); 
@@ -110,17 +104,19 @@ package Ninja::Tk::Listbox {
 		my ($self) = @_;
 		#::trace("sel");
 		my $i = $self->index;
-		die "Вначале выберите элемент списка $self->{name}" if $i eq "";
-		$self->{HRAN}[ $i ]
-	}
-
-	sub asel {
-		my ($self) = @_;
-		die "Метод asel нельзя использовать если в списке $self->{name} есть выделение" if $self->index ne "";
-		my $res = $self->{HRAN}[ $self->anchor ];
-		die "anchor не установлен в списке $self->{name}" if !$res;
+		$i = $self->anchor if $i eq "";
+		my $res = $self->{HRAN}[ $i ];
+		die "Вначале выберите элемент списка $self->{name}" if !$res;
 		$res
 	}
+
+	# sub sel {
+		# my ($self) = @_;
+		# die "Метод sel нельзя использовать если в списке $self->{name} есть выделение" if $self->index ne "";
+		# my $res = $self->{HRAN}[ $self->anchor ];
+		# die "anchor не установлен в списке $self->{name}" if !$res;
+		# $res
+	# }
 
 	sub replace {
 		my $self = shift;
@@ -337,7 +333,7 @@ sub new_action {
 	
 	if($type eq "categories") {
 		$self->categories->_entry(sub {
-			my $class = $self->classes->asel;
+			my $class = $self->classes->sel;
 			my $category = $jinnee->category_new(shift, $class);
 			$self->categories->insert_element($idx+1, $category);
 			$self->category_select;

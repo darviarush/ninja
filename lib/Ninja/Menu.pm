@@ -40,8 +40,10 @@ sub construct {
 	$self->cascade(project => 'Проект');
 		$self->command('Создать', "F7", sub { $main->selectors->new_action });
 		$self->command('Изменить', "F2", sub { $main->selectors->edit_action });
-		$self->command('Удалить', "F8", sub { $main->selectors->delete_action });
-		$self->separator;
+		$self->command('Копировать', "F5", sub { $main->selectors->copy_action });
+		$self->command('Удалить в корзину', "F8", sub { $main->selectors->delete_action });
+		$self->command('Восстановить из корзины', "Shift-F8", sub { $main->selectors->restore_action });
+		# $self->separator;
 		# $self->command('Отменить', "Control-Alt-Z", sub { $main->selectors->history_back_action });
 		# $self->command('Применить', "Control-Alt-Y", sub { $main->selectors->history_next_action });
 		# $self->separator;
@@ -58,13 +60,11 @@ sub construct {
 		# $self->command('Копировать', "Control-c, Control-Insert", "event generate . <<Copy>>");
 		# $self->command('Вставить', "Control-v, Shift-Insert", "event generate . <<Paste>>");
 		# $self->command('Вырезать', "Control-x", "event generate . <<Cut>>");
-		$self->separator;
+		#$self->separator;
 		# $self->command('Выделить всё', "Control-a", sub { $main->area->select_all });
-		$self->separator;
-		$self->command('Дублировать строку', "Control-d", sub { $main->area->dup_line_action });
-		$self->separator;
-		$self->command('Отменить ввод', "Control-Z", sub { $main->area->back_action });
-		$self->command('Применить ввод', "Control-Y", sub { $main->area->next_action });
+		#$self->separator;
+		$self->command('Дублировать строку', "Control-d", '%W insert {insert lineend} "\\n[%W get {insert linestart} {insert lineend}]"', 'Text');
+		$self->command('Удалить строку', "Control-Delete", '%W delete {insert linestart} {insert lineend}', 'Text');
 	$self->pop;
 	
 	$self->cascade(navigation => 'Навигация');
@@ -92,15 +92,20 @@ sub cascade {
 }
 
 sub command {
-	my ($self, $label, $key_default, $command) = @_;
+	my ($self, $label, $key_default, $command, $widget) = @_;
 	
 	my $key = $self->main->config->at(["menu", @{$self->{PATH_LABEL}}, $label], $key_default);
 	
 	$self->i->call($self->top, qw/add command/, -label => $label, -accelerator => $key, -command => $command);
 	
 	my @keys = split /,\s*/, $key;
+	
+	# for my $key (@keys) {
+		 # if exists $self->{all_keys}{$key};
+	# }
+	
 	my $first_key = shift @keys;
-	$self->i->call(bind => "." => "<$first_key>" => $command);
+	$self->i->call("bind", $widget // ".", "<$first_key>", $command);
 	for my $second_key (@keys) {
 		$self->i->Eval("bind . <$second_key> { event generate . <$first_key> }");
 	}
