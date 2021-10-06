@@ -13,6 +13,7 @@ sub new {
 	my $cls = shift;
 	bless {
 		INC => ["src"],
+		trash => "$ENV{HOME}/.cache/ninja-editor-trash", # путь к корзине
 		# class->{$name}->{prop}{$name} => type (class name)
 		#      ->{method}{"at put"} => {args=>[type, type]}
 		#      ->{mtime} => unixtime
@@ -33,7 +34,7 @@ sub package_list {
 	my ($self) = @_;
 		
 	map { my $inc=$_; 
-		map { +{ path => $_, name => $self->unescape(substr $_, 1+length $inc) } } $self->ls($inc)
+		map { +{ section => "packages", path => $_, name => $self->unescape(substr $_, 1+length $inc) } } $self->ls($inc)
 	} @{$self->{INC}}
 }
 
@@ -42,7 +43,7 @@ sub class_list {
 	my ($self, $package) = @_;
 	
 	map { my $path = $_;
-		map { +{ path => $_, name => $self->unescape(substr $_, 1+length $path) } } $self->ls($path)
+		map { +{ section => "classes", path => $_, name => $self->unescape(substr $_, 1+length $path) } } $self->ls($path)
 	} $package->{all}? (map { $self->ls($_) } @{$self->{INC}}): $package->{path}
 }
 
@@ -52,7 +53,7 @@ sub category_list {
 	
 	my $path = $class->{path};
 	
-	map { +{ path => $_, name => $self->unescape(substr $_, 1+length $path) } } grep { !/\/\.\$\z/ } $self->ls($path)
+	map { +{ section => "categories", path => $_, name => $self->unescape(substr $_, 1+length $path) } } grep { !/\/\.\$\z/ } $self->ls($path)
 }
 
 # список методов. $category может быть '*'
@@ -60,7 +61,7 @@ sub method_list {
 	my ($self, $category) = @_;
 	
 	map { my $path = $_;
-		map { +{ path => $_, name => $self->unescape(substr $_, 1+length($path), -2) } } $self->ls($path)
+		map { +{ section => "methods", path => $_, name => $self->unescape(substr $_, 1+length($path), -2) } } $self->ls($path)
 	} $category->{all}? (grep { !/\/\.\$\z/ } $self->ls($category->{path})): $category->{path}
 }
 
@@ -177,25 +178,64 @@ sub method_compile {
 
 #@category Стиратели
 
+sub to_trash {
+	my ($self, $section, $path) = @_;
+	
+	my ($file) = $path =~ m!([^/]+)$!;
+	my $f = "$self->{trash}/$section/$file";
+	my $to = "$f (0)";
+	my $c = 0;
+	$c++, $to = "$f ($c)" while -e $to;
+	
+	$self->mkpath($to);
+	
+	$self->mvtree($path, $to);
+	
+	$self
+}
+
 sub package_erase {
 	my ($self, $package) = @_;
-	$self->rmtree($package->{path});
+	$self->to_trash("packages", $package->{path});
 }
 
 sub class_erase {
 	my ($self, $class) = @_;
-	$self->rmtree($class->{path});
+	$self->to_trash("classes", $class->{path});
 }
 
 sub category_erase {
 	my ($self, $category) = @_;
-	$self->rmtree($category->{path});
+	$self->to_trash("categories", $category->{path});
 }
 
 sub method_erase {
 	my ($self, $method) = @_;
-	$self->rmtree($method->{path});
+	$self->to_trash("methods", $method->{path});
 }
+
+#@category Восстанавливатели
+
+sub package_restore {
+	my ($self, $package) = @_;
+	$self->to_trash("packages", $package->{path});
+}
+
+sub class_restore {
+	my ($self, $class) = @_;
+	$self->to_trash("classes", $class->{path});
+}
+
+sub category_restore {
+	my ($self, $category) = @_;
+	$self->to_trash("categories", $category->{path});
+}
+
+sub method_restore {
+	my ($self, $method) = @_;
+	$self->to_trash("methods", $method->{path});
+}
+
 
 #@category Синтаксис
 

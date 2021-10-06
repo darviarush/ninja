@@ -105,3 +105,39 @@ proc ::tk::TextSetCursor args {
 	# bind .classes.list <<ListboxSelect>> { puts [list %W %T [%W index active] [%W curselection] [%W index anchor] ] }
 	
 	
+# делает toplevel модальным
+proc open_as_modal {$w $top} {
+	if {$top == ""} {set top .}
+
+	tkwait visibility $top
+
+	grab $w
+	wm transient $w $top
+	wm protocol $w WM_DELETE_WINDOW {grab release $w; destroy $w}
+	raise $w
+	tkwait window $w
+}
+
+# диалог поиска
+proc find_dialog {} {
+	toplevel .s
+	pack [label .s.title -text {Поиск и замена}] -side left
+	pack [label .s.status -text {0 совпадений в 0 файлов}] -side left
+	
+	pack [button .s.match_case -text {i}] -side right
+	pack [button .s.word_only -text {\\b}] -side right
+	pack [button .s.regex -text {.*}] -side right
+	pack [button .s.local -text {A}] -side right
+	
+	pack [entry .s.find] -fill x
+	pack [entry .s.replace] -fill x
+	
+	
+	pack [make_scrolled_y [frame .s.r] [listbox .s.r.list]] -fill both -expand 1
+	
+	pack [make_scrolled_y [frame .s.t] [text .s.t.text -wrap word]] -fill both -expand 1
+	
+	pack [panedwindow .s.shower -orient horizontal] -fill both -expand 1
+	.s.shower add .s.r
+	.s.shower add .s.t
+}

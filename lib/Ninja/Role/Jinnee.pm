@@ -62,15 +62,43 @@ sub find {
 sub rmtree {
 	my ($self, $path) = @_;
 	
-	unlink($path) || die("Нельзя удалить файл `$path`. Причина: $!"), return if !-d $path;
+	unlink($path) || die("Нельзя удалить файл `$path`. Причина: $!"), return $self if !-d $path;
 	
 	$self->rmtree($_) for $self->ls($path);
 	rmdir $path;
+	
+	$self
+}
+
+sub file_copy {
+	my ($self, $from, $to) = @_;
+	
+	rename $from, $to or do {
+		undef $!;
+		open my $f, "<:raw", $from or die "Нельзя скопировать файл `$from` в `$to`. Причина в файле: $!";
+		open my $o, ">:raw", $to or do { close $f; die "Нельзя скопировать файл `$from` в `$to`. Причина в назначении: $!" };
+		while(read $f, my $buf, 1024*1024) { print $o $buf; }
+		close $f;
+		close $o;
+	};
+	
+	$self
+}
+
+sub mvtree {
+	my ($self, $from, $to) = @_;
+	$self->file_copy($from, $to), return $self if !-d $to;
+	
+	mkdir $to, (stat $from)[2] & 07777;
+	$self->mvtree($_, do { my ($file) = m!([^/]+)$!; "$to/$file" }) for $self->ls($from);
+	
+	$self
 }
 
 sub mkpath {
 	my ($self, $path) = @_;
 	mkdir $`, 0755 while $path =~ /\//g;
+	$path
 }
 
 sub file_save {
@@ -79,6 +107,7 @@ sub file_save {
 	open $f, ">", $path or die "Не могу создать `$path`. Причина: $!";
 	print $f $body;
 	close $f;
+	$self
 }
 
 # подгружает или создаёт файл

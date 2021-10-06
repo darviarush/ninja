@@ -10,6 +10,7 @@ sub new {
 
 sub main { shift->{main} }
 sub i { shift->{main}{i} }
+sub section { shift->{section} }
 
 sub packages { shift->{packages} }
 sub classes { shift->{classes} }
@@ -317,11 +318,11 @@ sub new_action_method {
 # создать объект в текущей секции
 sub new_action {
 	my ($self) = @_;
-	my ($type, $idx) = $self->who;
+	my ($section, $idx) = $self->who;
 	my $jinnee = $self->main->jinnee;
 	
 	
-	if($type eq "packages") {
+	if($section eq "packages") {
 		$self->packages->_entry(sub {
 			my $package = $jinnee->package_new(shift);
 			$self->packages->insert_element($idx+1, $package);
@@ -329,9 +330,9 @@ sub new_action {
 		});
 	}
 	
-	$self->new_action_class($idx) if $type eq "classes";
+	$self->new_action_class($idx) if $section eq "classes";
 	
-	if($type eq "categories") {
+	if($section eq "categories") {
 		$self->categories->_entry(sub {
 			my $class = $self->classes->sel;
 			my $category = $jinnee->category_new(shift, $class);
@@ -340,46 +341,46 @@ sub new_action {
 		});
 	}
 	
-	$self->new_action_method($idx) if $type eq "methods";
+	$self->new_action_method($idx) if $section eq "methods";
 }
 
 # редактировать категорию или пакет
 sub edit_action {
 	my ($self, $new_name) = @_;
 	my $jinnee = $self->main->jinnee;
-	my ($type, $idx) = $self->who;
+	my ($section, $idx) = $self->who;
 	
 	$self->packages->_entry(sub {
 		$self->packages->rename_element($idx, $jinnee->package_rename(shift, $self->packages->sel));
 		$self->package_select;
-	}) if $type eq "packages" and !$self->packages->sel->{all};
+	}) if $section eq "packages" and !$self->packages->sel->{all};
 
 	$self->categories->_entry(sub {
 		$self->categories->rename_element($idx, $jinnee->category_rename(shift, $self->categories->sel));
 		$self->category_select;
-	}) if $type eq "categories" and !$self->categories->sel->{all};
+	}) if $section eq "categories" and !$self->categories->sel->{all};
 	
 	$self->main->area->goto("1.end"), $self->i->Eval('
 		set bg [.t.text cget -background]
 		.t.text configure -background #ccf
 		after 300 {.t.text configure -background $bg}
-	') if $type =~ /classes|methods/;
+	') if $section =~ /classes|methods/;
 }
 
 # удалить текущий объект
 sub delete_action {
 	my ($self) = @_;
 	my $jinnee = $self->main->jinnee;
-	my ($type, $idx) = $self->who;
+	my ($section, $idx) = $self->who;
 
-	if($type eq "packages" and !$self->packages->sel->{all}) {
+	if($section eq "packages" and !$self->packages->sel->{all}) {
 		$jinnee->package_erase($self->packages->sel);
 		$self->packages->delete_element($idx);
 		$self->packages->select_element($idx==$self->packages->size? $idx-1: $idx);
 		$self->package_select;
 	}
 	
-	if($type eq "classes") {
+	if($section eq "classes") {
 		$jinnee->class_erase($self->classes->sel);
 		$self->classes->delete_element($idx);
 		if($self->classes->size == 0) {
@@ -388,13 +389,13 @@ sub delete_action {
 		} else { $self->class_select }
 	}
 		
-	if($type eq "categories" and !$self->categories->sel->{all}) {
+	if($section eq "categories" and !$self->categories->sel->{all}) {
 		$jinnee->category_erase($self->categories->sel);
 		$self->categories->delete_element($idx);
 		$self->category_select;
 	}
 
-	if($type eq "methods") {
+	if($section eq "methods") {
 		$jinnee->method_erase($self->methods->sel);
 		$self->methods->delete_element($idx);
 		if($self->methods->size == 0) { 
@@ -403,5 +404,61 @@ sub delete_action {
 		} else { $self->method_select }
 	}
 }
+
+# восстановить объект
+sub restore_action {
+	my ($self) = @_;
+	my $jinnee = $self->main->jinnee;
+	my ($section, $idx) = $self->who;
+
+	$self->i->Eval("
+		toplevel .restore
+		
+	");
+
+	if($section eq "packages" and !$self->packages->sel->{all}) {
+		$jinnee->package_erase($self->packages->sel);
+		$self->packages->delete_element($idx);
+		$self->packages->select_element($idx==$self->packages->size? $idx-1: $idx);
+		$self->package_select;
+	}
+	
+	if($section eq "classes") {
+		$jinnee->class_erase($self->classes->sel);
+		$self->classes->delete_element($idx);
+		if($self->classes->size == 0) {
+			$self->packages->select_element($self->packages->anchor);
+			$self->package_select;
+		} else { $self->class_select }
+	}
+		
+	if($section eq "categories" and !$self->categories->sel->{all}) {
+		$jinnee->category_erase($self->categories->sel);
+		$self->categories->delete_element($idx);
+		$self->category_select;
+	}
+
+	if($section eq "methods") {
+		$jinnee->method_erase($self->methods->sel);
+		$self->methods->delete_element($idx);
+		if($self->methods->size == 0) { 
+			$self->categories->select_element($self->categories->anchor);
+			$self->category_select;
+		} else { $self->method_select }
+	}
+}
+
+# найти или заменить
+sub search_action {
+	my ($self, $in_project, $and_replace) = @_;
+	my $jinnee = $self->main->jinnee;
+	my ($section, $idx) = $self->who;
+	
+	$self->i->Eval("
+		find_dialog
+		open_as_modal .s
+	");
+}
+
 
 1;

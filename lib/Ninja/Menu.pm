@@ -47,12 +47,9 @@ sub construct {
 		# $self->command('Отменить', "Control-Alt-Z", sub { $main->selectors->history_back_action });
 		# $self->command('Применить', "Control-Alt-Y", sub { $main->selectors->history_next_action });
 		# $self->separator;
-		# $self->separator;
-		# $self->command('Найти', "Control-F", sub { $main->selectors->find_action(0, 0) });
-		# $self->command('Заменить', "Control-R", sub { $main->selectors->find_action(0, 1) });
-		# $self->separator;
-		# $self->command('Найти в проекте', "Control-Shift-F", sub { $main->selectors->find_action(1, 1) });
-		# $self->command('Заменить в проекте', "Control-Shift-R", sub { $main->selectors->find_action(1, 1) });
+		$self->separator;
+		$self->command('Найти в проекте', "Control-Shift-F", sub { $main->selectors->find_action(1, 0) });
+		$self->command('Заменить в проекте', "Control-Shift-R", sub { $main->selectors->find_action(1, 1) });
 	$self->pop;
 	
 	
@@ -65,6 +62,9 @@ sub construct {
 		#$self->separator;
 		$self->command('Дублировать строку', "Control-d", '%W insert {insert lineend} "\\n[%W get {insert linestart} {insert lineend}]"', 'Text');
 		$self->command('Удалить строку', "Control-Delete", '%W delete {insert linestart} {insert lineend}', 'Text');
+		$self->separator;
+		$self->command('Найти', "Control-F", sub { $main->selectors->find_action(0, 0) });
+		$self->command('Заменить', "Control-R", sub { $main->selectors->find_action(0, 1) });
 	$self->pop;
 	
 	# $self->cascade(navigation => 'Навигация');
