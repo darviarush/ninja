@@ -134,4 +134,76 @@ sub file_read {
 	$buf
 }
 
+# рекурсивно обходит каталог path запуская на каждом подходящем файле ok и progress через каждые 
+# Параметры:
+# * path - путь. Может быть массивом
+# * notin - регулярка для подкаталогов в которые входить не надо
+# * include - маска для файлов которые ищем
+# * exclude - исключающая маска для файлов
+# * ok - обработчик найденного файла
+# * progress - зарпускает обработчик прогресса, вызывается через указанное количество секунд
+# * interval - количество секунд для обработчика прогресса
+sub file_find {
+	my ($self, $dir_x, %a) = @_;
+	
+	my @S = ref $dir_x? @$dir_x: $dir_x;
+	my $notin = $a{notin};
+	my $include = $a{include};
+	my $exclude = $a{exclude};
+	my $ok = $a{ok};
+	my $progress = $a{progress};
+	my $interval = $a{interval} // 0.01;
+	use Time::HiRes;
+	my $time = Time::HiRes::time();
+	my $files = 0;
+	my $dirs = 0;
+	my $files_ok = 0;
+	
+	while(@S) {
+		my $dir = pop @S;
+		$dirs++;
+		
+		for my $path ($self->ls($dir)) {
+			push(@S, $path), next if -d $path and !($notin and $path =~ $notin);
+			$files++;
+			$files_ok++, $ok->($path, $files_ok, $files, $dirs) if $path =~ $include and !($exclude and $path =~ $exclude);
+			
+			if($progress and $time + $interval < Time::HiRes::time()) {
+				$progress->($files_ok, $files, $dirs);
+				return $self if !defined $files_ok;
+				$time = Time::HiRes::time();
+			}
+		}
+	}
+	
+	$self
+}
+
+# текстовый поиск в файлах
+# параметры те же, что и в file_find и
+# * re - регулярка для поиска в файле
+sub file_find_text {
+	my ($self, $dirs, %a) = @_;
+
+	my $ok = $a{ok};
+	my $re = delete $a{re};
+	$a{ok} = sub {
+		my ($path) = @_;
+		my $f = $self->file_read($path);
+		return if $f !~ $re;
+		
+		my $x = length $`;
+		# подсчитываем на какой это строке
+		my $lineno = 0;
+		my $pos;
+		$pos = length($`), $lineno++ while $f =~ /\n/g && length($`) < $x;
+		
+		# получаем строку
+		my ($line) = $f =~ /^.{$pos}([^\n]*)/s;
+		
+		$ok->(lineno => $lineno, charno => $x - $pos, line => $line, text => $f, path => $path, offset => $x);
+	};
+	$self->file_find($dirs, %a);
+}
+
 1;

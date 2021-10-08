@@ -236,6 +236,13 @@ sub method_restore {
 	$self->to_trash("methods", $method->{path});
 }
 
+#@category Поиск и замена
+
+# осуществляет поиск до первого срабатывания 
+sub find {
+	my ($self) = @_;
+	$self
+}
 
 #@category Синтаксис
 

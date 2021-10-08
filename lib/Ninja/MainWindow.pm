@@ -54,7 +54,7 @@ sub construct {
 	#$SIG{INT} = sub { $i->Eval("destroy ."); $sigint->(@_) };
 	
 	$i->CreateCommand("::perl::on_window_destroy", sub {
-		%$project = ();
+		%$project = $project->{find}? (find => $project->{find}): ();
 		
 		$project->{geometry} = $i->icall(qw/wm geometry ./);
 		$project->{sections}{filters}[$_] = $i->Eval(".$sec[$_].filter get") for 0..3;

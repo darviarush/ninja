@@ -60,11 +60,11 @@ sub construct {
 		#$self->separator;
 		# $self->command('Выделить всё', "Control-a", sub { $main->area->select_all });
 		#$self->separator;
-		$self->command('Дублировать строку', "Control-d", '%W insert {insert lineend} "\\n[%W get {insert linestart} {insert lineend}]"', 'Text');
-		$self->command('Удалить строку', "Control-Delete", '%W delete {insert linestart} {insert lineend}', 'Text');
+		$self->command('Дублировать строку', "Control-d", '%W insert {insert lineend} "\\n[%W get {insert linestart} {insert lineend}]"', '.t.text');
+		$self->command('Удалить строку', "Control-Delete", '%W delete {insert linestart} {insert lineend}', '.t.text');
 		$self->separator;
-		$self->command('Найти', "Control-F", sub { $main->selectors->find_action(0, 0) });
-		$self->command('Заменить', "Control-R", sub { $main->selectors->find_action(0, 1) });
+		$self->command('Найти', "Control-f", sub { $main->selectors->find_action(0, 0) }, '.t.text');
+		$self->command('Заменить', "Control-r", sub { $main->selectors->find_action(0, 1) }, '.t.text');
 	$self->pop;
 	
 	# $self->cascade(navigation => 'Навигация');
@@ -92,7 +92,7 @@ sub cascade {
 }
 
 sub command {
-	my ($self, $label, $key_default, $command, $widget) = @_;
+	my ($self, $label, $key_default, $command, $widgets) = @_;
 	
 	my $key = $self->main->config->at(["menu", @{$self->{PATH_LABEL}}, $label], $key_default);
 	
@@ -105,9 +105,12 @@ sub command {
 	# }
 	
 	my $first_key = shift @keys;
-	$self->i->call("bind", $widget // ".", "<$first_key>", $command);
-	for my $second_key (@keys) {
-		$self->i->Eval("bind . <$second_key> { event generate . <$first_key> }");
+	
+	for my $widget (split /\s+/, $widgets // ".") {
+		$self->i->call("bind", $widget, "<$first_key>", $command);
+		for my $second_key (@keys) {
+			$self->i->Eval("bind $widget <$second_key> { event generate $widget <$first_key> }");
+		}
 	}
 	
 	$self

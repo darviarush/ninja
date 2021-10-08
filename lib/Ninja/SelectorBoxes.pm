@@ -30,9 +30,9 @@ sub construct {
 	
 	for my $section ($self->sections) {
 		$self->{$section} = Ninja::Tk::Listbox->new(frame=>".$section", i=>$i);
-		#$i->call("bind", ".$name.list", "<FocusIn>", sub { $self->select_section($name) });
+		#$self->i->call("bind", ".$name.list", "<FocusIn>", sub { $self->select_section($name) });
 		
-		$i->call("bind", ".$section.list", "<<ListboxSelect>>", sub {
+		$self->i->call("bind", ".$section.list", "<<ListboxSelect>>", sub {
 			my $x = "$singular{$section}_select";
 			::msg "$section - $self->{section} $x";
 			
@@ -45,16 +45,17 @@ sub construct {
 		});
 	}
 
-	$i->call(qw/bind .packages.list <Double-1>/, sub { $self->edit_action });
-	$i->call(qw/bind .categories.list <Double-1>/, sub { $self->edit_action });
+	$self->i->call(qw/bind .packages.list <Double-1>/, sub { $self->edit_action });
+	$self->i->call(qw/bind .categories.list <Double-1>/, sub { $self->edit_action });
 	
-	$i->call(qw/bind .packages.filter <KeyRelease>/, sub { $self->packages_init });
-	$i->call(qw/bind .classes.filter <KeyRelease>/, sub { $self->package_select });
-	$i->call(qw/bind .categories.filter <KeyRelease>/, sub { $self->class_select });
-	$i->call(qw/bind .methods.filter <KeyRelease>/, sub { $self->category_select });
+	$self->i->call(qw/bind .packages.filter <KeyRelease>/, sub { $self->packages_init });
+	$self->i->call(qw/bind .classes.filter <KeyRelease>/, sub { $self->package_select });
+	$self->i->call(qw/bind .categories.filter <KeyRelease>/, sub { $self->class_select });
+	$self->i->call(qw/bind .methods.filter <KeyRelease>/, sub { $self->category_select });
 	
 	$self->packages_init;
 
+	my $set;
 	my $selectors = $self->main->project->{selectors};
 	if(0 + %$selectors) {
 		for my $section ($self->sections) {
@@ -63,11 +64,14 @@ sub construct {
 			$self->$section->select_element($selectors->{$section});
 			my $meth = "$singular{$section}_select";
 			$self->$meth;
+			
+			$set++;
 		}
 		
 		$self->main->area->goto($selectors->{areaCursor}) if $selectors->{areaCursor};
 	}
-	else {
+	
+	if(!$set) {
 		$self->packages->select_element(0); 
 		$self->package_select;
 	}
@@ -449,15 +453,63 @@ sub restore_action {
 }
 
 # найти или заменить
-sub search_action {
+sub find_action {
 	my ($self, $in_project, $and_replace) = @_;
 	my $jinnee = $self->main->jinnee;
 	my ($section, $idx) = $self->who;
 	
-	$self->i->Eval("
-		find_dialog
-		open_as_modal .s
-	");
+	my $i = $self->i;
+	
+	$i->Eval("find_dialog");
+	
+	my $project = $self->main->project;
+	$i->icall(qw/wm geometry .s/, $project->{find}{geometry}) if $project->{find}{geometry};
+	$i->icall(qw/.s.shower paneconfigure .s.r -height/, $project->{find}{height}) if $project->{find}{height};
+	
+	$i->call(qw/wm protocol .s WM_DELETE_WINDOW/, sub {
+		
+		$project->{find} = {
+			geometry => $i->icall(qw/wm geometry .s/),
+			height => $i->Eval("winfo height .s.r"),
+		};
+		
+		$i->Eval("destroy .s");
+	});	
+	
+	$i->Eval("bind .s.top.find <Up> {puts \"%A %K\"}");
+	$i->Eval("bind .s.top.find <Down> {puts \"%A %K\"}");
+
+	
+	$i->call(qw/bind .s.top.find <KeyPress>/, sub {
+		my $re = $i->Eval(".s.top.find get 0 end");
+		
+		my $match_case = $i->Eval(".s.top.match_case cget -state") eq "active";
+		my $word_only = $i->Eval(".s.top.word_only cget -state") eq "active";
+		my $regex = $i->Eval(".s.top.regex cget -state") eq "active";
+		my $local = $i->Eval(".s.top.local cget -state") eq "active";
+		my $show_replace = $i->Eval(".s.top.show_replace cget -state") eq "active";
+		
+		return if $local && $self->main->area->disabled;
+		
+		$re = quotemeta $re if !$regex;
+		if($word_only) {
+			$re = "\\b$re" if $re =~ /^\w/;
+			$re = "$re\\b" if $re =~ /\w\z/;
+		}
+		$re = "(?i:$re)" if !$match_case;
+		
+		$i->CreateCommand("::perl::on_find", sub {
+			my $res = $self->main->jinnee->find($re);
+			for my $e ( @$res ) {
+				::msg "-->", $e;
+				$i->icall(qw/.s.r.line insert end/, "$e->{line}\n");
+				$i->icall(qw/.s.r.file insert end/, "$e->{file}\n");
+			}
+			
+		});
+		$i->Eval('catch { after cancel $find_id }; set find_id [after idle ::perl::on_find]');
+	});
+	
 }
 
 
