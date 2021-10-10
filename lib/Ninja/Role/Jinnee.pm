@@ -134,49 +134,61 @@ sub file_read {
 	$buf
 }
 
-# рекурсивно обходит каталог path запуская на каждом подходящем файле ok и progress через каждые 
-# Параметры:
-# * path - путь. Может быть массивом
-# * notin - регулярка для подкаталогов в которые входить не надо
-# * include - маска для файлов которые ищем
-# * exclude - исключающая маска для файлов
-# * ok - обработчик найденного файла
-# * progress - зарпускает обработчик прогресса, вызывается через указанное количество секунд
-# * interval - количество секунд для обработчика прогресса
+=pod
+рекурсивно обходит каталог path запуская на каждом подходящем файле ok и progress через каждые 
+Параметры:
+* path - путь. Может быть массивом
+* notin - регулярка для подкаталогов в которые входить не надо
+* include - маска для файлов которые ищем
+* exclude - исключающая маска для файлов
+* ok - обработчик найденного файла
+* after - останавает поиск через это количество секунд, если ничего не найдено
+а если найдено - возвращается сразу
+
+Возвращает ["path",...], [] (был остановлен after) или 0 (что означает конец).
+
+Использование:
+
+	$self->file_find_set(".");
+	while(my $f = $self->file_find) { ... }
+=cut
+sub file_find_set {
+	my ($self, $dirs, %args) = @_;
+	$self->{file_find_param} = {
+		S => ref $dirs? $dirs: [$dirs],
+		%args
+	};
+	$self
+}
+
 sub file_find {
-	my ($self, $dir_x, %a) = @_;
+	my ($self) = @_;
 	
-	my @S = ref $dir_x? @$dir_x: $dir_x;
-	my $notin = $a{notin};
-	my $include = $a{include};
-	my $exclude = $a{exclude};
-	my $ok = $a{ok};
-	my $progress = $a{progress};
-	my $interval = $a{interval} // 0.01;
+	my $F = $self->{file_find_param};
+	
+	my $S = $F->{S};
+	my $notin = $F->{notin};
+	my $include = $F->{include};
+	my $exclude = $F->{exclude};
 	use Time::HiRes;
-	my $time = Time::HiRes::time();
-	my $files = 0;
-	my $dirs = 0;
-	my $files_ok = 0;
+	my $time = Time::HiRes::time() + $F->{after} // 0.01;
+	my $R;
 	
-	while(@S) {
-		my $dir = pop @S;
-		$dirs++;
+	while(@$S) {
+		my $dir = pop @$S;
+		
+		$F->{dirs}++;
 		
 		for my $path ($self->ls($dir)) {
-			push(@S, $path), next if -d $path and !($notin and $path =~ $notin);
-			$files++;
-			$files_ok++, $ok->($path, $files_ok, $files, $dirs) if $path =~ $include and !($exclude and $path =~ $exclude);
-			
-			if($progress and $time + $interval < Time::HiRes::time()) {
-				$progress->($files_ok, $files, $dirs);
-				return $self if !defined $files_ok;
-				$time = Time::HiRes::time();
-			}
+			push(@$S, $path), next if -d $path and !($notin and $path =~ $notin);
+			$F->{files}++;
+			$F->{files_ok}++, push @$R, $path if $path =~ $include and !($exclude and $path =~ $exclude);			
 		}
+		
+		return @$R? $R: @$S? []: 0 if $time < Time::HiRes::time();
 	}
 	
-	$self
+	return @$R? $R: 0;
 }
 
 # текстовый поиск в файлах

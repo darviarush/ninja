@@ -454,14 +454,16 @@ sub restore_action {
 
 # найти или заменить
 sub find_action {
-	my ($self, $in_project, $and_replace) = @_;
+	my ($self) = @_;
 	my $jinnee = $self->main->jinnee;
 	my ($section, $idx) = $self->who;
 	
 	my $i = $self->i;
 	
+	# создание
 	$i->Eval("find_dialog");
 	
+	# конфигурация
 	my $project = $self->main->project;
 	$i->icall(qw/wm geometry .s/, $project->{find}{geometry}) if $project->{find}{geometry};
 	$i->icall(qw/.s.shower paneconfigure .s.r -height/, $project->{find}{height}) if $project->{find}{height};
@@ -476,9 +478,21 @@ sub find_action {
 		$i->Eval("destroy .s");
 	});	
 	
+	# события
 	$i->Eval("bind .s.top.find <Up> {puts \"%A %K\"}");
 	$i->Eval("bind .s.top.find <Down> {puts \"%A %K\"}");
-
+	
+	$i->CreateCommand("::perl::on_find", sub {
+		my $res = $self->main->jinnee->find;
+		::msg "-->", $e;
+		
+		$i->Eval('after cancel $find_id'), return if !$res;
+		
+		for my $e ( @$res ) {
+			$i->icall(qw/.s.r.line insert end/, @{$e->{line}});
+			$i->icall(qw/.s.r.file insert end/, @{$e->{file}});
+		}
+	});
 	
 	$i->call(qw/bind .s.top.find <KeyPress>/, sub {
 		my $re = $i->Eval(".s.top.find get 0 end");
@@ -489,7 +503,7 @@ sub find_action {
 		my $local = $i->Eval(".s.top.local cget -state") eq "active";
 		my $show_replace = $i->Eval(".s.top.show_replace cget -state") eq "active";
 		
-		return if $local && $self->main->area->disabled;
+		$i->Eval('catch { after cancel $find_id }'), return if $local && $self->main->area->disabled;
 		
 		$re = quotemeta $re if !$regex;
 		if($word_only) {
@@ -498,15 +512,7 @@ sub find_action {
 		}
 		$re = "(?i:$re)" if !$match_case;
 		
-		$i->CreateCommand("::perl::on_find", sub {
-			my $res = $self->main->jinnee->find($re);
-			for my $e ( @$res ) {
-				::msg "-->", $e;
-				$i->icall(qw/.s.r.line insert end/, "$e->{line}\n");
-				$i->icall(qw/.s.r.file insert end/, "$e->{file}\n");
-			}
-			
-		});
+		$self->main->jinnee->find_set($re, !$local? (): $self->section->sel);
 		$i->Eval('catch { after cancel $find_id }; set find_id [after idle ::perl::on_find]');
 	});
 	

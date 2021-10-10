@@ -11,7 +11,10 @@ wm protocol . WM_DELETE_WINDOW {
 }
 
 # редактирование
+bind Entry <Insert> {}
+bind Text <Insert> {}
 bind Entry <Control-a> { event generate %W <<SelectAll>> }
+bind Text <Control-a> { event generate %W <<SelectAll>> }
 
 bind Entry <<Paste>> {
 	catch { %W delete sel.first sel.last }
@@ -21,7 +24,6 @@ bind Entry <<Paste>> {
 	}
 }
 
-bind Text <Control-a> { event generate %W <<SelectAll>> }
 #bind Text <Control-f> {}
 
 
