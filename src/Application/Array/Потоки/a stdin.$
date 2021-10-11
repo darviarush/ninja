@@ -1,3 +1,5 @@
 a stdin
-^InputStream stdin
+^InputStream stdin`stdio.h` header
+^`stdin`
+
 

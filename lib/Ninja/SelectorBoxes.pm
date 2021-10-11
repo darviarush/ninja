@@ -17,10 +17,6 @@ sub classes { shift->{classes} }
 sub categories { shift->{categories} }
 sub methods { shift->{methods} }
 
-sub sections { return qw/packages classes categories methods/ }
-sub singular { return qw/package class category method/ }
-my %singular = map { ((sections())[$_] => (singular())[$_]) } 0..3; 
-
 # создать selector_boxes
 sub construct {
 	my ($self) = @_;
@@ -28,12 +24,12 @@ sub construct {
 	my $jinnee = $self->main->jinnee;
 	my $i = $self->i;
 	
-	for my $section ($self->sections) {
+	for my $section ($jinnee->sections) {
 		$self->{$section} = Ninja::Tk::Listbox->new(frame=>".$section", i=>$i);
 		#$self->i->call("bind", ".$name.list", "<FocusIn>", sub { $self->select_section($name) });
 		
 		$self->i->call("bind", ".$section.list", "<<ListboxSelect>>", sub {
-			my $x = "$singular{$section}_select";
+			my $x = $jinnee->sin($section) . "_select";
 			::msg "$section - $self->{section} $x";
 			
 			$self->$x if $self->$section->index ne "";
@@ -58,11 +54,11 @@ sub construct {
 	my $set;
 	my $selectors = $self->main->project->{selectors};
 	if(0 + %$selectors) {
-		for my $section ($self->sections) {
+		for my $section ($jinnee->sections) {
 			last if !exists $selectors->{$section} || $selectors->{$section} >= $self->$section->size;
 			
 			$self->$section->select_element($selectors->{$section});
-			my $meth = "$singular{$section}_select";
+			my $meth = $jinnee->sin($section) . "_select";
 			$self->$meth;
 			
 			$set++;
@@ -235,8 +231,10 @@ sub package_select {
 	
 	#$self->packages_init, $self->packages->select_element(0) if $package->{name} eq "*";
 	
+	my @packages = $package->{all}? @{$self->packages->list}[1..$self->packages->size-1]: $package;
+	
 	my $re = $self->classes->filter;
-	$self->classes->replace(grep { $_->{name} =~ /$re/i } $self->main->jinnee->class_list($package));
+	$self->classes->replace(grep { $_->{name} =~ /$re/i } map { $self->main->jinnee->class_list($_) } @packages);
 	$self->categories->replace;
 	$self->methods->replace;
 	$self->main->area->disable;
@@ -266,8 +264,12 @@ sub category_select {
 	my ($self) = @_;
 	
 	::msg "- " . (caller(0))[3];
+	
+	my $category = $self->categories->sel;
+	my @categories = $category->{all}? @{$self->categories->list}[1..$self->categories->size-1]: $category;
+	
 	my $re = $self->methods->filter;
-	$self->methods->replace(grep { $_->{name} =~ /$re/i } $self->main->jinnee->method_list($self->categories->sel));
+	$self->methods->replace(grep { $_->{name} =~ /$re/i } map { $self->main->jinnee->method_list($_) } @categories);
 	$self->main->area->disable;
 	
 	$self->select_section("categories");
@@ -484,13 +486,13 @@ sub find_action {
 	
 	$i->CreateCommand("::perl::on_find", sub {
 		my $res = $self->main->jinnee->find;
-		::msg "-->", $e;
+		::msg "-->", $res;
 		
 		$i->Eval('after cancel $find_id'), return if !$res;
 		
-		for my $e ( @$res ) {
-			$i->icall(qw/.s.r.line insert end/, @{$e->{line}});
-			$i->icall(qw/.s.r.file insert end/, @{$e->{file}});
+		for my $r ( @$res ) {
+			$i->icall(qw/.s.r.line insert end/, @$_) for @{$r->{line}};
+			$i->icall(qw/.s.r.file insert end/, @{$r->{file}});
 		}
 	});
 	

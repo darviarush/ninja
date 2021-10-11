@@ -33,8 +33,8 @@ sub new {
 sub package_list {
 	my ($self) = @_;
 		
-	map { my $inc=$_; 
-		map { +{ section => "packages", path => $_, name => $self->unescape(substr $_, 1+length $inc) } } $self->ls($inc)
+	map { my $inc = $_;
+		map { +{ section => "packages",	inc => $inc, path => $_, name => $self->unescape(substr $_, 1+length $inc) }} $self->ls($inc)
 	} @{$self->{INC}}
 }
 
@@ -42,9 +42,8 @@ sub package_list {
 sub class_list {
 	my ($self, $package) = @_;
 	
-	map { my $path = $_;
-		map { +{ section => "classes", path => $_, name => $self->unescape(substr $_, 1+length $path) } } $self->ls($path)
-	} $package->{all}? (map { $self->ls($_) } @{$self->{INC}}): $package->{path}
+	my $path = $package->{path};
+	map { +{ section => "classes", package => $package, path => $_, name => $self->unescape(substr $_, 1+length $path) } } $self->ls($path)
 }
 
 # список категорий
@@ -52,17 +51,15 @@ sub category_list {
 	my ($self, $class) = @_;
 	
 	my $path = $class->{path};
-	
-	map { +{ section => "categories", path => $_, name => $self->unescape(substr $_, 1+length $path) } } grep { !/\/\.\$\z/ } $self->ls($path)
+	map { +{ section => "categories", class => $class, path => $_, name => $self->unescape(substr $_, 1+length $path) } } grep { !/\/\.\$\z/ } $self->ls($path)
 }
 
 # список методов. $category может быть '*'
 sub method_list {
 	my ($self, $category) = @_;
 	
-	map { my $path = $_;
-		map { +{ section => "methods", path => $_, name => $self->unescape(substr $_, 1+length($path), -2) } } $self->ls($path)
-	} $category->{all}? (grep { !/\/\.\$\z/ } $self->ls($category->{path})): $category->{path}
+	my $path = $category->{path};
+	map { +{ section => "methods", category => $category, path => $_, name => $self->unescape(substr $_, 1+length($path), -2) } } $self->ls($path)
 }
 
 #@category Читатели
@@ -70,13 +67,13 @@ sub method_list {
 # возвращает тело класса
 sub class_get {
 	my ($self, $class) = @_;
-	return 1, $self->color( $self->file_load("$class->{path}/.\$", "Nil subclass $class->{name}\n\n") );
+	return 1, $self->file_load("$class->{path}/.\$", "Nil subclass $class->{name}\n\n");
 }
 
 # Возвращает тело метода раскрашенное разными цветами
 sub method_get {
 	my ($self, $method) = @_;
-	return 1, $self->color( $self->file_load("$method->{path}", "$method->{name}\n\n") );
+	return 1, $self->file_load("$method->{path}", "$method->{name}\n\n");
 }
 
 
@@ -238,10 +235,72 @@ sub method_restore {
 
 #@category Поиск и замена
 
-# осуществляет поиск до первого срабатывания 
+# устанавливает параметры поиска
+sub find_set {
+	my ($self, $re, $where) = @_;
+	$self->{find_param} = {
+		re => $re,
+		S => [$where // $self->package_list],
+	}
+	$self
+}
+
+# осуществляет поиск до первого срабатывания или пока не выйдет время
 sub find {
 	my ($self) = @_;
-	$self
+	
+	my $A = $self->{find_param};
+	my $S = $A->{S};
+	
+	use Time::HiRes;
+	my $time = Time::HiRes::time() + $A->{after} // 0.01;
+	
+	while(@$S) {
+		my $who = pop @$S;
+		
+		my ($line_start, $text) = ();
+		
+		if($who->{section} eq "packages") {
+			push @$S, $self->class_list($who);
+		}
+		elsif($who->{section} eq "classes") {
+			push @$S, $self->category_list($who);
+			($line_start, $text) = $self->class_get($who);
+		}
+		elsif($who->{section} eq "categories") {
+			push @$S, $self->method_list($who);
+		}
+		else {
+			($line_start, $text) = $self->method_get($who);
+		}
+		
+		if(defined $text) {
+			my $re = $A->{re};
+			my @R;
+			my $tags;
+			my $i;
+			my $where;
+
+			while($text =~ /$re/g) {
+				my $offset = length $`;
+				$tags //= $self->color_ref($text);
+				
+				$i++ while $tags->[$i]{offset} < ;
+				
+				$where //= $self->sin($who->{section});
+				push @R, {
+					line => ,
+					file => join(" ", $who->{name}, $line_start + $lineno, $where),
+				};
+			}
+			
+			return \@R if @R;
+		}
+		
+		return [] if $time < Time::HiRes::time();
+	}
+	
+	0
 }
 
 #@category Синтаксис
@@ -452,6 +511,24 @@ sub color {
 	}
 	
 	$ret
+}
+
+sub color_ref {
+	my ($self, $text) = @_;
+
+	my $line = 0;
+	my $offset = 0;
+	[ map { 
+		my $r = {
+			lineno=>$line, 
+			tag=>$_->[1], 
+			lex=>$_->[0],
+			offset => $offset,
+		}; 
+		$offset += length $_->[0];
+		$line++ while $_->[0] =~ /\n/g; 
+		$r 
+	} @{$self->lex($text)} ];
 }
 
 

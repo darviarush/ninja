@@ -84,13 +84,16 @@ sub disabled { my ($self) = @_; $self->i->Eval(".t.text cget -state") eq "disabl
 
 sub set {
 	my ($self, $text) = @_;
+	
+	my $tags = $self->main->jinnee->color($text);
+	
 	my $pos = $self->i->Eval(".t.text index insert");
 	$self->i->Eval(".t.text delete 1.0 end");
 	
-	$self->i->invoke(qw/.t.text insert end/, @$_) for @$text;
+	$self->i->invoke(qw/.t.text insert end/, @$_) for @$tags;
 	$self->goto($pos);
 	
-	$self->{text} = join "", map { $_->[0] } @$text;
+	$self->{text} = join "", map { $_->[0] } @$tags;
 	$self
 }
 

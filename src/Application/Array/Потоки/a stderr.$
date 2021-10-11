@@ -1,3 +1,4 @@
 a stderr
-^OutputStream stderr
+`stdio.h` header
+^`stderr`
 

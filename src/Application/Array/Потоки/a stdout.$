@@ -1,3 +1,5 @@
 a stdout
-^OutputStream stdout
+`stdio.h` header
+^`stdout`
+
 
