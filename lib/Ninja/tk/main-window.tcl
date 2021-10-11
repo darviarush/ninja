@@ -142,7 +142,7 @@ proc find_dialog {} {
 	pack [checkbutton .s.top.match_case -text {Aa} -indicatoron 0] -side left
 	pack [checkbutton .s.top.word_only -text {[W]} -indicatoron 0] -side left
 	pack [checkbutton .s.top.regex -text {.*} -indicatoron 0] -side left
-	pack [checkbutton .s.top.local -text {In} -indicatoron 0] -side left
+	pack [checkbutton .s.top.local -text {in} -indicatoron 0] -side left
 	pack [checkbutton .s.top.show_replace -text {*->*} -indicatoron 0] -side left
 	
 	pack [frame .s.replace] -fill x
@@ -158,7 +158,6 @@ proc find_dialog {} {
 	.s.r.shower add .s.r.line
 	.s.r.shower add .s.r.file
 
-	
 	proc setScroll {s args} {
 		eval [list $s set] $args
 		eval [$s cget -command] [list moveto [lindex [$s get] 0]]
