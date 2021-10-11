@@ -285,7 +285,7 @@ sub find {
 				my $offset = length $`;
 				$tags //= $self->color_ref($text);
 				
-				$i++ while $tags->[$i]{offset} < ;
+				$i++ while $i!=@$tags && $tags->[$i+1]{offset} < $offset;
 				
 				$where //= $self->sin($who->{section});
 				push @R, {
