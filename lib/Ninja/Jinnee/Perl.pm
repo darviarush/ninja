@@ -129,15 +129,17 @@ bless {
 
 1;");
 	
-	my ($class) = $file =~ m!^(.*?)(\nsub\b|$)!s;
+	my ($new) = $file =~ m!^(.*?)(\nsub\b|$)!s;
 	
-	return 1, $self->color($class);
+	return 1, $new;
 }
 
-# Возвращает номер строки и тело метода раскрашенное разными цветами
+# Возвращает номер строки и тело метода
 sub method_get {
 	my ($self, $method) = @_;
-	return 1, $self->color( $self->file_load("$method->{path}", "$method->{name}\n\n") );
+	my $body = $self->file_load($method->{path}, "sub $method->{name} {\n\tmy (\$self) = \@_;\n\n\t\$self\n}\n");
+	
+	return 1, $body;
 }
 
 #@category Синтаксис
@@ -179,7 +181,7 @@ sub tags {
 	    # -slant => 'italic'
     # ],
 
-sub color {
+sub lex {
 	my ($self, $text) = @_;
 
 	my $prev = 0;
