@@ -105,6 +105,7 @@ sub command {
 	
 	$self->i->call($self->top, qw/add command/, -label => $label, -accelerator => $key, -command => $command);
 	
+	#$i->CreateCommand("::perl::menu_", sub {
 	#$command = ref $command? do { my $c = $command; sub { $c->(); $self->i->Eval("break") } }: "$command\nbreak";
 		
 	my @keys = split /,\s*/, $key;
