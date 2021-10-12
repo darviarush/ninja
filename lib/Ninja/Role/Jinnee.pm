@@ -15,11 +15,8 @@ sub new {
 sub sections { return qw/packages classes categories methods/ }
 sub singular { return qw/package class category method/ }
 
-our %SINGULAR = map { ((sections())[$_] => (singular())[$_]) } 0..3;
-sub sin { $SINGULAR{$_[0]} }
-
-our %SECTIONS = map { ((sections())[$_] => $_) } 0..3;
-sub section_next { $SECTIONS{ $SECTIONS{$_[0]} + 1 } 
+our %SINGULAR = map { ((sections())[$_], (singular())[$_]) } 0..3;
+sub sin { $SINGULAR{$_[1]} }
 
 #@category Переименование / в системных путях
 

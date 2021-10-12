@@ -6,6 +6,9 @@ use common::sense;
 use parent 'Ninja::Role::Jinnee';
 
 
+use Time::HiRes qw//;
+
+
 our $DEBUG = 0;
 
 
@@ -241,7 +244,7 @@ sub find_set {
 	$self->{find_param} = {
 		re => $re,
 		S => [$where // $self->package_list],
-	}
+	};
 	$self
 }
 
@@ -252,7 +255,6 @@ sub find {
 	my $A = $self->{find_param};
 	my $S = $A->{S};
 	
-	use Time::HiRes;
 	my $time = Time::HiRes::time() + $A->{after} // 0.01;
 	
 	while(@$S) {
@@ -277,20 +279,33 @@ sub find {
 		if(defined $text) {
 			my $re = $A->{re};
 			my @R;
-			my $tags;
+			my $lex;
 			my $i;
 			my $where;
 
 			while($text =~ /$re/g) {
 				my $offset = length $`;
-				$tags //= $self->color_ref($text);
+				my $limit = $offset + length $&;
+				$lex //= $self->color_ref($text);
 				
-				$i++ while $i!=@$tags && $tags->[$i+1]{offset} < $offset;
+				# на какую лексему приходится начало выделения
+				$i++ while $i!=@$lex && $lex->[$i+1]{offset} < $offset;
 				
-				$where //= $self->sin($who->{section});
+				# выбираем все лексемы находящиеся на строке начала выделения
+				my $n = $lex->{line};
+				my $k = $i; my $m = $i;
+				$k-- while $k>0 && $lex->[$k-1]{line} == $n;
+				$m++ while $m<$#$lex && $lex->[$m+1]{line} == $n && $lex->[$m+1]{lex} != "\n";
+				my $line = [map { my $t=$lex->[$_]{tag}; ($lex->[$_]{lex}, $t eq "space"? (): $t) } $k..$m];
+				
+				push @$line, ["\n"];
 				push @R, {
-					line => ,
-					file => join(" ", $who->{name}, $line_start + $lineno, $where),
+					select => [$offset - $lex->[$k]{offset},
+								$lex->[$m]{limit} < $limit? $lex->[$m]{limit}: 
+									$limit - $lex->[$k]{offset}],
+					line => $line,
+					file => [[join(" ", $who->{name}, $line_start + $n - 1, 
+						$where //= $self->sin($who->{section})) . "\n"]],
 				};
 			}
 			
@@ -333,6 +348,7 @@ sub tags {
 		remark => [-foreground => '#696969', -relief => 'raised'],
 		
 		error => [-background => '#FF0000'],
+		find_illumination => [-background => '#ee82ee'],
 	}
 }
 
@@ -520,10 +536,11 @@ sub color_ref {
 	my $offset = 0;
 	[ map { 
 		my $r = {
-			lineno=>$line, 
-			tag=>$_->[1], 
+			line=>$line, 
 			lex=>$_->[0],
+			tag=>$_->[1], 
 			offset => $offset,
+			limit => $offset + length($_->[0]),
 		}; 
 		$offset += length $_->[0];
 		$line++ while $_->[0] =~ /\n/g; 

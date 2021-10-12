@@ -61,7 +61,7 @@ sub construct {
 		$project->{sections}{widths}[$_] = $i->Eval("winfo width .$sec[$_]") for 0..2;
 		$project->{sections}->{height} = $i->Eval("winfo height .sections");
 		
-		for my $section ($self->selectors->sections) {
+		for my $section ($self->jinnee->sections) {
 			$project->{selectors}{$section} = $self->selectors->$section->anchor;
 			last if $self->selectors->{section} eq $section;
 		}

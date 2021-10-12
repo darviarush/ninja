@@ -128,6 +128,20 @@ package Ninja::Tk::Listbox {
 		$self
 	}
 	
+	sub clear {
+		my $self = shift;
+		$self->delete(0, "end");
+		$self->{HRAN} = [];
+		$self
+	}
+	
+	sub append {
+		my $self = shift;
+		$self->{HRAN} = [@_];
+		$self->insert("end", map { $_->{name} } @_);
+		$self
+	}
+	
 	sub insert_element {
 		my ($self, $idx, $elem) = @_;
 		$self->insert($idx, $elem->{name});
@@ -480,6 +494,11 @@ sub find_action {
 		$i->Eval("destroy .s");
 	});	
 	
+	# настройки
+	my $tags = $self->main->jinnee->tags;
+
+	$self->i->invoke(qw/.s.r.line tag configure/, $_ => @{$tags->{$_}}) for sort keys %$tags;
+	
 	# события
 	$i->Eval("bind .s.top.find <Up> {puts \"%A %K\"}");
 	$i->Eval("bind .s.top.find <Down> {puts \"%A %K\"}");
@@ -490,9 +509,15 @@ sub find_action {
 		
 		$i->Eval('after cancel $find_id'), return if !$res;
 		
+		my $line = 0;
 		for my $r ( @$res ) {
+			$line++;
+			
 			$i->icall(qw/.s.r.line insert end/, @$_) for @{$r->{line}};
-			$i->icall(qw/.s.r.file insert end/, @{$r->{file}});
+			$i->icall(qw/.s.r.file insert end/, @$_) for @{$r->{file}};
+			
+			my ($c1, $c2) = @{$r->{select}};
+			$i->icall(qw/.s.r.line tag add find_illumination/, "$line.$c1", "$line.$c2");
 		}
 	});
 	

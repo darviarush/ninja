@@ -132,6 +132,7 @@ proc balloon {w text} {
 
 # диалог поиска
 proc find_dialog {} {
+
 	toplevel .s
 	wm title .s {Поиск и замена. 0 совпадений в 0 файлов}
 	#pack [label .s.status -text {0 совпадений в 0 файлов}] -side left
@@ -147,7 +148,6 @@ proc find_dialog {} {
 	
 	pack [frame .s.replace] -fill x
 	pack [entry .s.replace.entry] -side left -fill x -expand 1
-	
 	
 	pack [panedwindow .s.shower -orient vertical] -fill both -expand 1
 	
