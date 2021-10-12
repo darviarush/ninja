@@ -476,6 +476,9 @@ sub find_action {
 	
 	my $i = $self->i;
 	
+	::msg "find_action";
+	::trace;
+	
 	# создание
 	$i->Eval("find_dialog");
 	

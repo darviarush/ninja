@@ -82,7 +82,7 @@ sub method_get {
 
 #@category Писатели
 
-# сохраняет и возвращает раскрашенным тело класса
+# сохраняет и если нужно - переименовывает. Возвращает переименованный объект
 sub class_put {
 	my ($self, $class, $body) = @_;
 	$self->file_save("$class->{path}/.\$", $body);
@@ -99,10 +99,10 @@ sub class_put {
 		};
 	}
 	
-	return $class, $self->color($body);
+	return $class;
 }
 
-# Сохраняет тело метода
+# сохраняет и если нужно - переименовывает. Возвращает переименованный объект
 sub method_put {
 	my ($self, $method, $body) = @_;
 	$self->file_save("$method->{path}", $body);
@@ -118,7 +118,7 @@ sub method_put {
 		};
 	}
 
-	return $method, $self->color($body);
+	return $method;
 }
 
 #@category Демиурги
@@ -339,7 +339,7 @@ sub tags {
 		#prefix => [-foreground => '#008080'],
 		#postfix => [-foreground => '#1E90FF'],
 		#compare_operator => [-foreground => '#DC143C'],
-		logic_operator => [-foreground => '#C71585'],
+		#logic_operator => [-foreground => '#C71585'],
 		
 		staple => [-foreground => '#4682B4'],
 		bracket => [-foreground => '#5F9EA0'],
@@ -396,7 +396,6 @@ sub lex {
 		(?<variable> \b [a-zA-Z] \b) |
 		(?<attribute> \b _ [a-z]\w+ \b) |
 		
-		(?<logic_operator> \b (not|and|or) \b ) |
 		(?<method> \b [a-z]\w+ \b) |
 		
 		(?<operator> ([-+*/^%\$?!<>=.:,;|&\\#])+ ) |
@@ -450,7 +449,7 @@ sub lex {
 			my ($x, $t) = @_;
 			for my $r (split //, $t) {
 				return 1 if $x && (
-					$r eq "a" && $x->[1] =~ /^(variable|class|attribute|integer|number|string)\z/n
+					$r eq "a" && $x->[1] =~ /^(variable|class|attribute|integer|number|string|code)\z/n
 					|| $r eq "l" && $x->[1] eq "lunary"
 					|| $r eq "u" && $x->[1] eq "unary"
 					|| $r eq "m" && $x->[1] eq "method"

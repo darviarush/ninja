@@ -29,7 +29,6 @@ sub construct {
 	push @{$self->{PATH}}, ".menu";
 	
 	my $config = $main->config;
-	my $key;
 	
 	$self->cascade(file => 'Файл');
 		$self->command('Открыть', "F5", sub { ::msg "hi!", \@_ });
@@ -60,8 +59,8 @@ sub construct {
 		#$self->separator;
 		# $self->command('Выделить всё', "Control-a", sub { $main->area->select_all });
 		#$self->separator;
-		$self->command('Дублировать строку', "Control-d", '%W insert {insert lineend} "\\n[%W get {insert linestart} {insert lineend}]"', '.t.text');
-		$self->command('Удалить строку', "Control-Delete", '%W delete {insert linestart} {insert lineend}', '.t.text');
+		$self->command('Дублировать строку', "Control-d", '.t.text insert {insert lineend} "\\n[.t.text get {insert linestart} {insert lineend}]"', '.t.text');
+		$self->command('Удалить строку', "Control-Delete", '.t.text delete {insert linestart} {insert lineend+1c}', '.t.text');
 		$self->separator;
 		$self->command('Найти', "Control-f", sub { $main->selectors->find_action(0, 0) }, '.t.text');
 		$self->command('Заменить', "Control-r", sub { $main->selectors->find_action(0, 1) }, '.t.text');
@@ -71,6 +70,14 @@ sub construct {
 		# $self->command('Назад', "Control-Alt-Left", sub { $main->selectors->move_back_action });
 		# $self->command('Вперёд', "Control-Alt-Right", sub { $main->selectors->move_next_action });
 	# $self->pop;
+	
+	$self->cascade(settings => 'Настройки');
+		$self->command('Сбросить комбинации клавишь', "Control-Alt-Key-1", sub {
+			delete $config->{menu};
+			$self->i->Eval("destroy .menu");
+			$self->construct;
+		});
+	$self->pop;
 	
 	$self
 }
@@ -98,6 +105,8 @@ sub command {
 	
 	$self->i->call($self->top, qw/add command/, -label => $label, -accelerator => $key, -command => $command);
 	
+	#$command = ref $command? do { my $c = $command; sub { $c->(); $self->i->Eval("break") } }: "$command\nbreak";
+		
 	my @keys = split /,\s*/, $key;
 	
 	# for my $key (@keys) {
@@ -106,12 +115,18 @@ sub command {
 	
 	my $first_key = shift @keys;
 	
-	for my $widget (split /\s+/, $widgets // ".") {
-		$self->i->call("bind", $widget, "<$first_key>", $command);
-		for my $second_key (@keys) {
-			$self->i->Eval("bind $widget <$second_key> { event generate $widget <$first_key> }");
+	eval {
+	
+		for my $widget (split /\s+/, $widgets // ".") {
+			$self->i->call("bind", $widget, "<$first_key>", $command);
+			for my $second_key (@keys) {
+				$self->i->Eval("bind $widget <$second_key> { event generate $widget <$first_key> }");
+			}
 		}
-	}
+		
+	};
+	
+	::msg $@ if $@;
 	
 	$self
 }

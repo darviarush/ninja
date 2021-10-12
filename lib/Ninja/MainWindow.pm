@@ -72,9 +72,9 @@ sub construct {
 		$config->save;
 	});
 	
-	$self->{menu} = Ninja::Menu->new(main=>$self)->construct;
 	$self->{area} = Ninja::MethodArea->new(main => $self)->construct;
 	$self->{selectors} = Ninja::SelectorBoxes->new(main => $self)->construct;
+	$self->{menu} = Ninja::Menu->new(main=>$self)->construct;
 	
 	$i->Eval("tkwait window .");
 	

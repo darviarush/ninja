@@ -1,0 +1,10 @@
+Nil subclass Application
+
+`stdio.h` from "libc.so"
+
+stdin = Stream new `stdin`
+stdout = Stream new `stdout`
+stderr = Stream new `stderr`
+
+argv = Array of String
+environ = Map of String to String

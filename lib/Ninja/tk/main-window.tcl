@@ -24,7 +24,22 @@ bind Entry <<Paste>> {
 	}
 }
 
-#bind Text <Control-f> {}
+proc ::tk_textPaste w {
+    if {![catch {::tk::GetSelection $w CLIPBOARD} sel]} {
+	set oldSeparator [$w cget -autoseparators]
+	if {$oldSeparator} {
+	    $w configure -autoseparators 0
+	    $w edit separator
+	}
+	catch { $w delete sel.first sel.last }
+	$w insert insert $sel
+	if {$oldSeparator} {
+	    $w edit separator
+	    $w configure -autoseparators 1
+	}
+    }
+}
+
 
 
 # puts  [ttk::style theme names]
@@ -90,7 +105,7 @@ pack [make_scrolled_y [frame .t] [text .t.text -wrap word]] -fill both -expand 1
 .main add .t
 
 
-
+bind .t.text <Control-f> { puts "hi!"; break}
 
 # при установке курсора меняем и позицию в тулбаре
 rename ::tk::TextSetCursor ::theRealSource::TextSetCursor

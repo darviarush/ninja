@@ -35,29 +35,28 @@ sub update {
 	my ($self) = @_;
 
 	return $self if $self->i->Eval(".t.text cget -state") eq 'disabled';
-	
+
 	my $text = $self->text;
 	return $self if $text eq $self->{text};
-	$self->{text} = $text;
-	
+
 	#print "<<SAVE>>$text\n";
-	
-	# получаем колоризированный текст
+
+	# записываем текст
 	my $put = "$self->{type}_put";
-	my ($who, $text) = eval { $self->main->jinnee->$put($self->{who}, $text) };
+	my $who = eval { $self->main->jinnee->$put($self->{who}, $text) };
 	$self->main->errorbox($@, -title => "Обновление окна"), return $self if $@;
-	
+
 	$self->set($text);
-	
+
 	if($who->{name} ne $self->{who}{name}) {
 		my $sel = $self->{type} eq "class"? $self->main->selectors->classes: $self->main->selectors->methods;
 		$sel->rename_element($sel->anchor, $who);
 		my $x = "$self->{type}_select";
 		$self->main->selectors->$x;
 	}
-	
+
 	$self->{who} = $who;
-	
+
 	$self
 }
 
@@ -85,15 +84,15 @@ sub disabled { my ($self) = @_; $self->i->Eval(".t.text cget -state") eq "disabl
 sub set {
 	my ($self, $text) = @_;
 	
-	my $tags = $self->main->jinnee->color($text);
+	my $lex = $self->main->jinnee->color($text);
 	
 	my $pos = $self->i->Eval(".t.text index insert");
 	$self->i->Eval(".t.text delete 1.0 end");
 	
-	$self->i->invoke(qw/.t.text insert end/, @$_) for @$tags;
+	$self->i->invoke(qw/.t.text insert end/, @$_) for @$lex;
 	$self->goto($pos);
 	
-	$self->{text} = join "", map { $_->[0] } @$tags;
+	$self->{text} = $text;
 	$self
 }
 
