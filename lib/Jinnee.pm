@@ -292,13 +292,16 @@ sub find {
 				$i++ while $i!=@$lex && $lex->[$i+1]{offset} < $offset;
 				
 				# выбираем все лексемы находящиеся на строке начала выделения
-				my $n = $lex->{line};
+				my $n = $lex->[$i]{line};
 				my $k = $i; my $m = $i;
 				$k-- while $k>0 && $lex->[$k-1]{line} == $n;
 				$m++ while $m<$#$lex && $lex->[$m+1]{line} == $n && $lex->[$m+1]{lex} != "\n";
 				my $line = [map { my $t=$lex->[$_]{tag}; ($lex->[$_]{lex}, $t eq "space"? (): $t) } $k..$m];
 				
 				push @$line, ["\n"];
+				
+				my $file = $who->{section} eq "classes"? $who->{name}: 
+				
 				push @R, {
 					select => [$offset - $lex->[$k]{offset},
 								$lex->[$m]{limit} < $limit? $lex->[$m]{limit}: 
@@ -309,7 +312,7 @@ sub find {
 				};
 			}
 			
-			return \@R if @R;
+			::msg("find:", \@R), return \@R if @R;
 		}
 		
 		return [] if $time < Time::HiRes::time();

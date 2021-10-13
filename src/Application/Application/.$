@@ -1,10 +1,10 @@
 Nil subclass Application
 
-`stdio.h` from "libc.so"
+`stdio.h` includeFrom "libc.so"
 
-stdin = Stream new `stdin`
-stdout = Stream new `stdout`
-stderr = Stream new `stderr`
+stdin = Stream new `stdin` as Pointer
+stdout = Stream new `stdout` as Pointer
+stderr = Stream new `stderr` as Pointer
 
 argv = Array of String
 environ = Map of String to String

@@ -1,4 +1,4 @@
 a uid
-`#include <unistd.h>` header
+`unistd.h` includeFrom "libc.so"
 ^`getuid()` as Integer
 

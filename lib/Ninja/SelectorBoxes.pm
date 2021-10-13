@@ -131,13 +131,13 @@ package Ninja::Tk::Listbox {
 	sub clear {
 		my $self = shift;
 		$self->delete(0, "end");
-		$self->{HRAN} = [];
+		@{$self->{HRAN}} = ();
 		$self
 	}
 	
 	sub append {
 		my $self = shift;
-		$self->{HRAN} = [@_];
+		push @{$self->{HRAN}}, @_;
 		$self->insert("end", map { $_->{name} } @_);
 		$self
 	}
@@ -242,19 +242,30 @@ sub package_select {
 	
 	my $package = $self->packages->sel;
 	::msg "- " . (caller(0))[3], $package;
-	
+
 	#$self->packages_init, $self->packages->select_element(0) if $package->{name} eq "*";
 	
-	my @packages = $package->{all}? @{$self->packages->list}[1..$self->packages->size-1]: $package;
-	
 	my $re = $self->classes->filter;
-	$self->classes->replace(grep { $_->{name} =~ /$re/i } map { $self->main->jinnee->class_list($_) } @packages);
-	$self->categories->replace;
-	$self->methods->replace;
+	if($package->{all}) {
+		my @packages = @{$self->packages->list}[1..$self->packages->size-1];
+
+		$self->classes->clear;
+		
+		$self->idle("package_select" => sub {
+			$self->classes->append(grep { $_->{name} =~ /$re/i } $self->main->jinnee->class_list(shift @packages));
+			0+@packages
+		});
+				
+	} else {
+		$self->classes->replace(grep { $_->{name} =~ /$re/i } $self->main->jinnee->class_list($package));
+	}
+	
+	$self->categories->clear;
+	$self->methods->clear;
 	$self->main->area->disable;
-	
-	$self->select_section("packages");
-	
+
+	$self->select_section("packages");	
+
 	$self
 }
 
@@ -266,7 +277,7 @@ sub class_select {
 	
 	my $re = $self->categories->filter;
 	$self->categories->replace(grep { $_->{name} =~ /$re/i } +{name => "*", path => $class->{path}, all => 1}, $self->main->jinnee->category_list($class));
-	$self->methods->replace;
+	$self->methods->clear;
 	$self->main->area->to_class($class);
 	
 	$self->select_section("classes");
@@ -279,11 +290,23 @@ sub category_select {
 	
 	::msg "- " . (caller(0))[3];
 	
-	my $category = $self->categories->sel;
-	my @categories = $category->{all}? @{$self->categories->list}[1..$self->categories->size-1]: $category;
-	
+	my $category = $self->categories->sel;	
 	my $re = $self->methods->filter;
-	$self->methods->replace(grep { $_->{name} =~ /$re/i } map { $self->main->jinnee->method_list($_) } @categories);
+	
+	if($category->{all}) {
+		my @categories = @{$self->categories->list}[1..$self->categories->size-1];
+
+		$self->methods->clear;
+		
+		$self->idle("category_select" => sub {
+			$self->methods->append(grep { $_->{name} =~ /$re/i } $self->main->jinnee->method_list(shift @categories));
+			0+@categories;
+		});
+		
+	} else {
+		$self->methods->replace(grep { $_->{name} =~ /$re/i } $self->main->jinnee->method_list($category));
+	}
+	
 	$self->main->area->disable;
 	
 	$self->select_section("categories");
@@ -470,17 +493,19 @@ sub restore_action {
 
 # найти или заменить
 sub find_action {
-	my ($self) = @_;
+	my ($self, $local, $replace) = @_;
 	my $jinnee = $self->main->jinnee;
 	my ($section, $idx) = $self->who;
 	
 	my $i = $self->i;
 	
-	::msg "find_action";
-	::trace;
-	
 	# создание
 	$i->Eval("find_dialog");
+	
+	$i->SetVar("local", $local);
+	$i->SetVar("show_replace", $replace);
+	#$i->icall(qw/.s.top.find insert end/);
+	$i->Eval(".s.top.find insert end [.t.text get sel.first sel.last]");
 	
 	# конфигурация
 	my $project = $self->main->project;
@@ -496,7 +521,7 @@ sub find_action {
 		
 		$i->Eval("destroy .s");
 	});	
-	
+
 	# настройки
 	my $tags = $self->main->jinnee->tags;
 
@@ -506,11 +531,41 @@ sub find_action {
 	$i->Eval("bind .s.top.find <Up> {puts \"%A %K\"}");
 	$i->Eval("bind .s.top.find <Down> {puts \"%A %K\"}");
 	
-	$i->CreateCommand("::perl::on_find", sub {
+	$i->call(qw/bind .s.top.find <KeyPress>/, sub { $self->find_start });
+	
+	$self->find_start if length $i->Eval(".s.top.find get");
+}
+
+sub find_start {
+	my ($self) = @_;
+	
+	my $i = $self->i;
+	
+	my $re = $i->Eval(".s.top.find get");
+	
+	my $match_case = $i->GetVar("match_case");
+	my $word_only = $i->GetVar("word_only");
+	my $regex = $i->GetVar("regex");
+	my $local = $i->GetVar("local");
+	my $show_replace = $i->GetVar("show_replace");
+	
+	$self->cancel("find_action"), return $self if $local && $self->main->area->disabled;
+	
+	$re = quotemeta $re if !$regex;
+	if($word_only) {
+		$re = "\\b$re" if $re =~ /^\w/;
+		$re = "$re\\b" if $re =~ /\w\z/;
+	}
+	$re = "(?i:$re)" if !$match_case;
+	
+	$self->main->jinnee->find_set($re, !$local? (): 
+		do { my $section=$self->{section}; $self->$section->sel });
+	
+	$self->idle("find_action" => sub {
 		my $res = $self->main->jinnee->find;
 		::msg "-->", $res;
 		
-		$i->Eval('after cancel $find_id'), return if !$res;
+		return 0 if !ref $res;
 		
 		my $line = 0;
 		for my $r ( @$res ) {
@@ -522,31 +577,47 @@ sub find_action {
 			my ($c1, $c2) = @{$r->{select}};
 			$i->icall(qw/.s.r.line tag add find_illumination/, "$line.$c1", "$line.$c2");
 		}
+		
+		return 1;
 	});
 	
-	$i->call(qw/bind .s.top.find <KeyPress>/, sub {
-		my $re = $i->Eval(".s.top.find get 0 end");
-		
-		my $match_case = $i->Eval(".s.top.match_case cget -state") eq "active";
-		my $word_only = $i->Eval(".s.top.word_only cget -state") eq "active";
-		my $regex = $i->Eval(".s.top.regex cget -state") eq "active";
-		my $local = $i->Eval(".s.top.local cget -state") eq "active";
-		my $show_replace = $i->Eval(".s.top.show_replace cget -state") eq "active";
-		
-		$i->Eval('catch { after cancel $find_id }'), return if $local && $self->main->area->disabled;
-		
-		$re = quotemeta $re if !$regex;
-		if($word_only) {
-			$re = "\\b$re" if $re =~ /^\w/;
-			$re = "$re\\b" if $re =~ /\w\z/;
-		}
-		$re = "(?i:$re)" if !$match_case;
-		
-		$self->main->jinnee->find_set($re, !$local? (): $self->section->sel);
-		$i->Eval('catch { after cancel $find_id }; set find_id [after idle ::perl::on_find]');
-	});
-	
+	$self
 }
 
+
+# Запускает на выполнение в фоне функцию, которая будет вызываться пока возвращает 1 
+# или её не перекроет функция с тем же идентификатором
+sub idle {
+	my ($self, $id, $idle) = @_;
+	
+	$self->cancel($id);
+	
+	$self->i->CreateCommand("::perl::idle_$id" => $idle);
+	$self->i->Eval("
+	proc idle_$id {} {
+		if {[::perl::idle_$id]} { 
+			set _idle_$id [after idle idle_$id]
+		} else {
+			proc ::perl::idle_$id {} {}
+			proc idle_$id {} {}
+		}
+	}
+	
+	set _idle_$id [after idle idle_$id]
+	");
+	
+	$self
+}
+
+# прекращает выполнение idle-функции по id
+sub cancel {
+	my ($self, $id) = @_;
+
+	$self->i->Eval("
+		catch { after cancel \$_idle_$id }
+		proc ::perl::idle_$id {} {}
+		proc idle_$id {} {}
+	");
+}
 
 1;

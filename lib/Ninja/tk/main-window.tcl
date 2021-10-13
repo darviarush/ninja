@@ -153,13 +153,13 @@ proc find_dialog {} {
 	#pack [label .s.status -text {0 совпадений в 0 файлов}] -side left
 	
 	pack [frame .s.top] -fill x
-	pack [entry .s.top.find -text find] -side left -fill x -expand 1
+	pack [entry .s.top.find] -side left -fill x -expand 1
 	
-	pack [checkbutton .s.top.match_case -text {Aa} -indicatoron 0] -side left
-	pack [checkbutton .s.top.word_only -text {[W]} -indicatoron 0] -side left
-	pack [checkbutton .s.top.regex -text {.*} -indicatoron 0] -side left
-	pack [checkbutton .s.top.local -text {in} -indicatoron 0] -side left
-	pack [checkbutton .s.top.show_replace -text {*->*} -indicatoron 0] -side left
+	pack [checkbutton .s.top.match_case -variable match_case -text {Aa}] -side left
+	pack [checkbutton .s.top.word_only -variable word_only -text {[W]}] -side left
+	pack [checkbutton .s.top.regex -variable regex -text {Re*}] -side left
+	pack [checkbutton .s.top.local -variable local -text {IN}] -side left
+	pack [checkbutton .s.top.show_replace -variable show_replace -text {*->*}] -side left
 	
 	pack [frame .s.replace] -fill x
 	pack [entry .s.replace.entry] -side left -fill x -expand 1
@@ -190,13 +190,13 @@ proc find_dialog {} {
 		.s.r.line see $cur
 	}
 	
-	scrollbar .s.r.scrollbar  -orient vertical -width 10 -command {synchScroll {.s.r.line .s.r.file} yview}
+	scrollbar .s.r.scrollbar -orient vertical -width 10 -command {synchScroll {.s.r.line .s.r.file} yview}
 	pack .s.r.scrollbar -side right -fill y
 	pack .s.r.line -expand 1 -side left -fill both
 	pack .s.r.file -side left -fill y
 		
 	foreach w {.s.r.line .s.r.file} {
-		$w insert end [exec cat /home/dart/.bashrc]
+		#$w insert end [exec cat /home/dart/.bashrc]
 		$w configure -state disabled -cursor arrow -wrap none -yscrollcommand {setScroll .s.r.scrollbar}
 		bind $w <1> { mouse_click %W %x %y }
 	}
