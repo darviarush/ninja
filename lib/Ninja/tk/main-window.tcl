@@ -159,7 +159,7 @@ proc find_dialog {} {
 	pack [checkbutton .s.top.word_only -variable word_only -text {[W]}] -side left
 	pack [checkbutton .s.top.regex -variable regex -text {Re*}] -side left
 	pack [checkbutton .s.top.local -variable local -text {IN}] -side left
-	pack [checkbutton .s.top.show_replace -variable show_replace -text {*->*}] -side left
+	pack [checkbutton .s.top.show_replace -variable show_replace -text {A->B}] -side left
 	
 	pack [frame .s.replace] -fill x
 	pack [entry .s.replace.entry] -side left -fill x -expand 1
@@ -180,7 +180,7 @@ proc find_dialog {} {
 	proc synchScroll {widgets args} {
 		foreach w $widgets {eval [list $w] $args}
 	}
-	proc mouse_click {W x y} {
+	proc find_line_click {W x y goto} {
 		set cur [tk::TextClosestGap $W $x $y]
 		foreach w {.s.r.line .s.r.file} {
 			$w tag delete active_line
@@ -188,6 +188,7 @@ proc find_dialog {} {
 			$w tag add active_line "$cur linestart" "$cur lineend+1c"
 		}
 		.s.r.line see $cur
+		::perl::find_line_show
 	}
 	
 	scrollbar .s.r.scrollbar -orient vertical -width 10 -command {synchScroll {.s.r.line .s.r.file} yview}
@@ -198,10 +199,11 @@ proc find_dialog {} {
 	foreach w {.s.r.line .s.r.file} {
 		#$w insert end [exec cat /home/dart/.bashrc]
 		$w configure -state disabled -cursor arrow -wrap none -yscrollcommand {setScroll .s.r.scrollbar}
-		bind $w <1> { mouse_click %W %x %y }
+		bind $w <1> { find_line_click %W %x %y 0 }
+		bind $w <Double-1> { find_line_click %W %x %y 1 }
 	}
 	
-	pack [make_scrolled_y [frame .s.t] [text .s.t.text -wrap word]] -fill both -expand 1
+	pack [make_scrolled_y [frame .s.t] [text .s.t.text -wrap word -state disabled]] -fill both -expand 1
 	
 	
 	.s.shower add .s.r

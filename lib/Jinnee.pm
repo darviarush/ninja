@@ -25,7 +25,6 @@ sub new {
 	}, $cls;
 }
 
-
 #@category Списки
 
 #!!
@@ -95,7 +94,7 @@ sub class_put {
 		$path =~ s!$cname$!$ename!;
 		undef $!;
 		rename $class->{path}, $path and do {
-			$class = {name => $name, path => $path};
+			$class = {%$class, name => $name, path => $path};
 		};
 	}
 	
@@ -114,7 +113,7 @@ sub method_put {
 		my $ename = $self->escape($name);
 		$path =~ s!$mname(\.\$)$!$ename$1!;
 		rename $method->{path}, $path and do {
-			$method = {name => $name, path => $path};
+			$method = {%$method, name => $name, path => $path};
 		};
 	}
 
@@ -125,10 +124,11 @@ sub method_put {
 
 sub package_new {
 	my ($self, $name) = @_;
-	my $path = $self->{INC}[$#{$self->{INC}[0]}] . "/" . $self->escape($name);
+	my $inc = $self->{INC}[$#{$self->{INC}}];
+	my $path = "$inc/" . $self->escape($name);
 	$self->mkpath("$path/");
 	die "Невозможно создать пакет $name ($path): $!" if !-e $path;
-	return {name => $name, path => $path};
+	return {section => 'packages', inc => $inc, name => $name, path => $path};
 }
 
 sub package_rename {
@@ -136,12 +136,12 @@ sub package_rename {
 	my $was = my $path = $package->{path};
 	$path =~ s![^/]*$!$self->escape($name)!e;
 	rename $package->{path}, $path or die "Невозможно переименовать $package->{path} -> $path: $!";
-	return {name => $name, path => $path};
+	return {%$package, name => $name, path => $path};
 }
 
 sub class_new {
 	my ($self, $name, $package) = @_;
-	my $class = {name => $name, path => "$package->{path}/" . $self->escape($name)};
+	my $class = {section => "classes", package => $package, name => $name, path => "$package->{path}/" . $self->escape($name)};
 	$self->class_get($class);
 	$class
 }
@@ -151,7 +151,7 @@ sub category_new {
 	my $path = "$class->{path}/" . $self->escape($name);
 	$self->mkpath("$path/");
 	die "Невозможно создать категорию $name ($path): $!" if !-e $path;
-	return {name => $name, path => $path};
+	return {section => 'categories', class => $class, name => $name, path => $path};
 }
 
 sub category_rename {
@@ -159,12 +159,12 @@ sub category_rename {
 	my $path = $category->{path};
 	$path =~ s![^/]*$!$self->escape($name)!e;
 	rename $category->{path}, $path or die "Невозможно переименовать $category->{path} -> $path: $!";
-	return {name => $name, path => $path};
+	return {%$category, name => $name, path => $path};
 }
 
 sub method_new {
 	my ($self, $name, $category) = @_;
-	my $class = {name => $name, path => "$category->{path}/" . $self->escape($name). ".\$"};
+	my $class = {section => 'methods', category => $category, name => $name, path => "$category->{path}/" . $self->escape($name). ".\$"};
 	$self->method_get($class);
 	$class
 }
@@ -244,6 +244,7 @@ sub find_set {
 	$self->{find_param} = {
 		re => $re,
 		S => [$where // $self->package_list],
+		result => [],
 	};
 	$self
 }
@@ -287,35 +288,38 @@ sub find {
 				my $offset = length $`;
 				my $limit = $offset + length $&;
 				$lex //= $self->color_ref($text);
-				
+
 				# на какую лексему приходится начало выделения
-				$i++ while $i!=@$lex && $lex->[$i+1]{offset} < $offset;
+				$i++ while $i<$#$lex && $lex->[$i+1]{offset} < $offset;
 				
 				# выбираем все лексемы находящиеся на строке начала выделения
 				my $n = $lex->[$i]{line};
 				my $k = $i; my $m = $i;
 				$k-- while $k>0 && $lex->[$k-1]{line} == $n;
-				$m++ while $m<$#$lex && $lex->[$m+1]{line} == $n && $lex->[$m+1]{lex} != "\n";
-				my $line = [map { my $t=$lex->[$_]{tag}; ($lex->[$_]{lex}, $t eq "space"? (): $t) } $k..$m];
+				$m++ while $m<$#$lex && $lex->[$m+1]{line} == $n;
+				my $line = [map { my $t=$lex->[$_]{tag}; [$lex->[$_]{lex}, $t =~ /^(space|newline)$/n? (): $t] } $k..$m];
 				
-				push @$line, ["\n"];
+				push @$line, ["\n"] if $line->[$#$line][0] ne "\n";
 				
-				my $file = $who->{section} eq "classes"? $who->{name}: 
+				my $file = $who->{section} eq "methods"? 
+					[[$who->{category}{class}{name}, 'class'], [" "], [$who->{name}, "method"]]:
+					[[$who->{name}, "class"]];
 				
 				push @R, {
 					select => [$offset - $lex->[$k]{offset},
 								$lex->[$m]{limit} < $limit? $lex->[$m]{limit}: 
 									$limit - $lex->[$k]{offset}],
 					line => $line,
-					file => [[join(" ", $who->{name}, $line_start + $n - 1, 
-						$where //= $self->sin($who->{section})) . "\n"]],
+					file => [@$file, [" "], [$line_start + $n - 1, "number"], ["\n"]],
 				};
+				
+				push @{$A->{result}}, $who;
 			}
 			
-			::msg("find:", \@R), return \@R if @R;
+			return \@R if @R;
 		}
 		
-		return [] if $time < Time::HiRes::time();
+		return @$S? []: 0 if $time < Time::HiRes::time();
 	}
 	
 	0

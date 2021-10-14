@@ -494,18 +494,24 @@ sub restore_action {
 # найти или заменить
 sub find_action {
 	my ($self, $local, $replace) = @_;
-	my $jinnee = $self->main->jinnee;
-	my ($section, $idx) = $self->who;
 	
+	my $jinnee = $self->main->jinnee;
+	my ($section, $idx) = $self->who;	
 	my $i = $self->i;
+	
+	# удаление
+	$i->Eval("catch { destroy .s }");
+	$self->cancel("find_action");
 	
 	# создание
 	$i->Eval("find_dialog");
 	
 	$i->SetVar("local", $local);
 	$i->SetVar("show_replace", $replace);
-	#$i->icall(qw/.s.top.find insert end/);
-	$i->Eval(".s.top.find insert end [.t.text get sel.first sel.last]");
+	
+	my $x = eval { $i->Eval(".t.text get sel.first sel.last") } //
+		$self->$section->sel->{name};
+	$i->invoke(qw/.s.top.find insert end/, $x);
 	
 	# конфигурация
 	my $project = $self->main->project;
@@ -523,25 +529,75 @@ sub find_action {
 	});	
 
 	# настройки
-	my $tags = $self->main->jinnee->tags;
-
-	$self->i->invoke(qw/.s.r.line tag configure/, $_ => @{$tags->{$_}}) for sort keys %$tags;
+	my $tags = $jinnee->tags;
+	for my $w (qw/.s.r.line .s.r.file .s.t.text/) {
+		$i->invoke($w, qw/tag configure/, $_ => @{$tags->{$_}}) for sort keys %$tags;
+	}
 	
-	# события
+	# показываем в нижнем окошке 
+	$i->CreateCommand("::perl::find_line_show" => sub {
+		my $cur = $i->GetVar("cur");
+		my $goto = $i->GetVar("goto");
+		
+		my $who = $jinnee->{find_param}{result}[$line-1];
+		
+		# перейти на 
+		if($goto) {
+			# TODO: переписать на отправку сигнала wm protocol .s WM_DELETE_WINDOW
+			$i->Eval("destroy .s");
+			# TODO: сам переход
+			return;
+		}
+		
+		my ($line) = split /\./, $cur;
+
+		my ($linestart, $text) = $jinnee->get($who);
+
+		$i->Eval("
+			.s.t.text configure -state normal
+			.s.t.text delete 1.0 end
+		");
+
+		# TODO: выделение в тексте и see
+		# TODO: переставлять курсор
+		# TODO: замена
+		# TODO: движение построчно курсором
+
+		$self->i->invoke(qw/.s.t.text insert end/, @$_) for @{$jinnee->color($text)};
+
+		$i->Eval(".s.t.text configure -state disable");
+	});
+
+	
+	# события	
 	$i->Eval("bind .s.top.find <Up> {puts \"%A %K\"}");
 	$i->Eval("bind .s.top.find <Down> {puts \"%A %K\"}");
 	
-	$i->call(qw/bind .s.top.find <KeyPress>/, sub { $self->find_start });
+	$i->call(qw/bind .s.top.find <KeyRelease>/, sub { $self->find_start });
 	
 	$self->find_start if length $i->Eval(".s.top.find get");
+	
+	$self
 }
 
 sub find_start {
 	my ($self) = @_;
 	
+	my ($section, $idx) = $self->who;
 	my $i = $self->i;
 	
+	# останавливаем предыдущий поиск и очищаем окна поиска
+	$self->cancel("find_action");
+	$self->find_list_manip(sub {
+		$i->Eval(".s.r.line delete 1.0 end");
+		$i->Eval(".s.r.file delete 1.0 end");
+		::msg "delete!";
+	});
+	
+	
 	my $re = $i->Eval(".s.top.find get");
+	
+	return $self if !length $re;
 	
 	my $match_case = $i->GetVar("match_case");
 	my $word_only = $i->GetVar("word_only");
@@ -549,7 +605,7 @@ sub find_start {
 	my $local = $i->GetVar("local");
 	my $show_replace = $i->GetVar("show_replace");
 	
-	$self->cancel("find_action"), return $self if $local && $self->main->area->disabled;
+	return $self if $local && $self->main->area->disabled;
 	
 	$re = quotemeta $re if !$regex;
 	if($word_only) {
@@ -557,25 +613,28 @@ sub find_start {
 		$re = "$re\\b" if $re =~ /\w\z/;
 	}
 	$re = "(?i:$re)" if !$match_case;
-	
-	$self->main->jinnee->find_set($re, !$local? (): 
-		do { my $section=$self->{section}; $self->$section->sel });
-	
+
+	$self->main->jinnee->find_set($re, $local? $self->$section->sel: ());
+
 	$self->idle("find_action" => sub {
 		my $res = $self->main->jinnee->find;
-		::msg "-->", $res;
 		
 		return 0 if !ref $res;
 		
-		my $line = 0;
+		my $index = $i->Eval(".s.r.line index end-1c");
+		my ($line) = split /\./, $index;
 		for my $r ( @$res ) {
-			$line++;
-			
-			$i->icall(qw/.s.r.line insert end/, @$_) for @{$r->{line}};
-			$i->icall(qw/.s.r.file insert end/, @$_) for @{$r->{file}};
+			$self->find_list_manip(sub {
+				$i->icall(qw/.s.r.line insert end/, @$_) for @{$r->{line}};
+				$i->icall(qw/.s.r.file insert end/, @$_) for @{$r->{file}};
+			});
 			
 			my ($c1, $c2) = @{$r->{select}};
 			$i->icall(qw/.s.r.line tag add find_illumination/, "$line.$c1", "$line.$c2");
+			
+			
+			
+			$line++;
 		}
 		
 		return 1;
@@ -584,6 +643,14 @@ sub find_start {
 	$self
 }
 
+# включает списки найденного для редактирования
+sub find_list_manip {
+	my ($self, $sub) = @_;
+	$self->i->Eval(".s.r.line configure -state normal; .s.r.file configure -state normal");
+	$sub->();
+	$self->i->Eval(".s.r.line configure -state disable; .s.r.file configure -state disable");
+	$self
+}
 
 # Запускает на выполнение в фоне функцию, которая будет вызываться пока возвращает 1 
 # или её не перекроет функция с тем же идентификатором

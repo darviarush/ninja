@@ -30,13 +30,13 @@ sub construct {
 	
 	my $config = $main->config;
 	
-	$self->cascade(file => 'Файл');
+	$self->cascade('Файл');
 		$self->command('Открыть', "F5", sub { ::msg "hi!", \@_ });
 		$self->separator;
 		$self->command('Завершить', "F10", sub { $i->Eval("exit") });
 	$self->pop;
 	
-	$self->cascade(project => 'Проект');
+	$self->cascade('Проект');
 		$self->command('Создать', "F7", sub { $main->selectors->new_action });
 		$self->command('Изменить', "F2", sub { $main->selectors->edit_action });
 		#$self->command('Копировать', "F5", sub { $main->selectors->copy_action });
@@ -47,12 +47,12 @@ sub construct {
 		# $self->command('Применить', "Control-Alt-Y", sub { $main->selectors->history_next_action });
 		# $self->separator;
 		$self->separator;
-		$self->command('Найти в проекте', "Control-Shift-F", sub { $main->selectors->find_action(0, 0) });
-		$self->command('Заменить в проекте', "Control-Shift-R", sub { $main->selectors->find_action(0, 1) });
+		$self->command('Найти в проекте', "Control-Shift-F, Control-Shift-N", sub { $main->selectors->find_action(0, 0) }, ". .t.text");
+		$self->command('Заменить в проекте', "Control-Shift-R", sub { $main->selectors->find_action(0, 1) }, ". .t.text");
 	$self->pop;
 	
 	
-	$self->cascade(editor => 'Редактор');
+	$self->cascade('Редактор');
 		# $self->command('Копировать', "Control-c, Control-Insert", "event generate . <<Copy>>");
 		# $self->command('Вставить', "Control-v, Shift-Insert", "event generate . <<Paste>>");
 		# $self->command('Вырезать', "Control-x", "event generate . <<Cut>>");
@@ -71,7 +71,7 @@ sub construct {
 		# $self->command('Вперёд', "Control-Alt-Right", sub { $main->selectors->move_next_action });
 	# $self->pop;
 	
-	$self->cascade(settings => 'Настройки');
+	$self->cascade('Настройки');
 		$self->command('Сбросить комбинации клавишь', "Control-Alt-Key-1", sub {
 			delete $config->{menu};
 			$self->i->Eval("destroy .menu");
@@ -83,10 +83,10 @@ sub construct {
 }
 
 sub cascade {
-	my ($self, $name, $label) = @_;
+	my ($self, $label) = @_;
 	
 	my $menu = $self->top;
-	my $submenu =  "$menu.$name";
+	my $submenu =  "$menu." . _translate($label);
 	
 	$self->i->Eval("
 		menu $submenu -tearoff 0
@@ -105,23 +105,20 @@ sub command {
 	
 	$self->i->call($self->top, qw/add command/, -label => $label, -accelerator => $key, -command => $command);
 	
-	#$i->CreateCommand("::perl::menu_", sub {
-	#$command = ref $command? do { my $c = $command; sub { $c->(); $self->i->Eval("break") } }: "$command\nbreak";
+	if(ref $command) {
+		$self->i->CreateCommand(my $x = "::perl::menu_" . _translate($label), $command);
+		$command = $x;
+	}
 		
 	my @keys = split /,\s*/, $key;
-	
-	# for my $key (@keys) {
-		 # if exists $self->{all_keys}{$key};
-	# }
-	
 	my $first_key = shift @keys;
 	
 	eval {
 	
 		for my $widget (split /\s+/, $widgets // ".") {
-			$self->i->call("bind", $widget, "<$first_key>", $command);
+			$self->i->Eval("bind $widget <$first_key> { $command; break }");
 			for my $second_key (@keys) {
-				$self->i->Eval("bind $widget <$second_key> { event generate $widget <$first_key> }");
+				$self->i->Eval("bind $widget <$second_key> { event generate $widget <$first_key>; break }");
 			}
 		}
 		
@@ -149,6 +146,21 @@ sub pop {
 	$self
 }
 
+
+# транслитерирует
+sub _translate {
+	my ($s) = @_;
+	$s = lc $s;
+	
+	my %S = qw/
+	а a б b в v г g д d е e ё oh ж jh з z и i й j к k л l м m н n о o п p р r с s т t 
+	у u ф f х hh ц c ч ch ш sh щ csh ъ qh ы y ь q э eh ю uh я ah
+	/;
+	$s =~ s{ [абвгдежзийклмнопрстуфхцчшщъыьэюяё] }{	$S{$&} }gixe;
+	
+	$s =~ s/\W/_/g;
+	$s
+}
 
 
 1;

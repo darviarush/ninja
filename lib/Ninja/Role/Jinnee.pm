@@ -18,6 +18,23 @@ sub singular { return qw/package class category method/ }
 our %SINGULAR = map { ((sections())[$_], (singular())[$_]) } 0..3;
 sub sin { $SINGULAR{$_[1]} }
 
+
+#@category Файлы
+
+# извлечение класса или метода
+sub get {
+	my ($self, $who) = @_;
+	if($who->{section} eq "classes") { $self->class_get($who) }	else { $self->method_get($who) }
+}
+
+# установка класса или метода
+sub put {
+	my ($self, $who, $text) = @_;
+	if($who->{section} eq "classes") { $self->class_put($who, $text) }	
+	else { $self->method_put($who, $text) }
+}
+
+
 #@category Переименование / в системных путях
 
 my $DIVIDE_SIGN = chr 0x2215;
