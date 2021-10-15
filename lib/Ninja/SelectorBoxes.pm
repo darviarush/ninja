@@ -598,7 +598,7 @@ sub find_action {
 			::msg $who;
 			
 			# показываем основное окно
-			$i->Eval("wm attributes . -topmost [expr [wm attributes . -topmost] ^ 1]");
+			$i->Eval("wm attributes . -topmost 1");
 			
 			# выбираем в нём объект поиска
 			$self->select($who);
