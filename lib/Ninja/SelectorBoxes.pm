@@ -185,6 +185,17 @@ package Ninja::Tk::Listbox {
 		$self
 	}
 	
+	sub scan {
+		my ($self, $who) = @_;
+		my $i = 0;
+		for(@{$self->{HRAN}}) {
+			return $i if $_->{path} eq $who->{path};
+			$i++;
+		}
+		die "Не найден $self->{frame} vs $who->{section} $who->{name}";
+	}
+	
+	
 	sub _entry {
 		my ($self, $cb) = @_;
 		
@@ -227,6 +238,39 @@ sub select_section {
 	$self
 }
 
+# вспомогательный метод для выбора указанной сущности
+sub select_by {
+	my ($self, $who) = @_;
+	my $section = $who->{section};
+	my $select = $self->main->jinnee->sin($section) . "_select";
+	$self->$section->select_element($self->$section->scan($who));
+	$self->$select;
+}
+
+# выбирает сущность
+sub select {
+	my ($self, $who) = @_;
+	
+	if($who->{category}) {
+		$self->select_by($who->{category}{class}{package});
+		$self->select_by($who->{category}{class});
+		$self->select_by($who->{category});
+		$self->select_by($who);
+	}
+	elsif($who->{class}) {
+		$self->select_by($who->{class}{package});
+		$self->select_by($who->{class});
+		$self->select_by($who);
+	}
+	elsif($who->{package}) {
+		$self->select_by($who->{package});
+		$self->select_by($who);
+	}
+	else {
+		$self->select_by($who);
+	}
+}
+
 # событие инициализации пакетов
 sub packages_init {
 	my ($self) = @_;
@@ -257,7 +301,9 @@ sub package_select {
 		});
 				
 	} else {
-		$self->classes->replace(grep { $_->{name} =~ /$re/i } $self->main->jinnee->class_list($package));
+		my @classes = $self->main->jinnee->class_list($package);
+		::msg "select_package -> get classes", $package, (map {($_->{name}, $re, qr/$re/i, $_->{name} =~ /$re/i? 1:0)} @classes), $re;
+		$self->classes->replace(grep { $_->{name} =~ /$re/i } @classes);
 	}
 	
 	$self->categories->clear;
@@ -536,20 +582,31 @@ sub find_action {
 	
 	# показываем в нижнем окошке 
 	$i->CreateCommand("::perl::find_line_show" => sub {
-		my $cur = $i->GetVar("cur");
+		my ($line) = $i->GetVar("cur") =~ /^(\d+)/;
 		my $goto = $i->GetVar("goto");
+		
 		
 		my $who = $jinnee->{find_param}{result}[$line-1];
 		
-		# перейти на 
+		# перейти на результат
 		if($goto) {
 			# TODO: переписать на отправку сигнала wm protocol .s WM_DELETE_WINDOW
-			$i->Eval("destroy .s");
+			#$i->Eval("wm command .s WM_DELETE_WINDOW");
+			#$i->Eval("destroy .s");
 			# TODO: сам переход
+			
+			::msg $who;
+			
+			# показываем основное окно
+			$i->Eval("wm attributes . -topmost [expr [wm attributes . -topmost] ^ 1]");
+			
+			# выбираем в нём объект поиска
+			$self->select($who);
+			
+			#$self->main->area->goto($selectors->{areaCursor})
+
 			return;
 		}
-		
-		my ($line) = split /\./, $cur;
 
 		my ($linestart, $text) = $jinnee->get($who);
 
@@ -563,7 +620,7 @@ sub find_action {
 		# TODO: замена
 		# TODO: движение построчно курсором
 
-		$self->i->invoke(qw/.s.t.text insert end/, @$_) for @{$jinnee->color($text)};
+		$i->invoke(qw/.s.t.text insert end/, @$_) for @{$jinnee->color($text)};
 
 		$i->Eval(".s.t.text configure -state disable");
 	});
