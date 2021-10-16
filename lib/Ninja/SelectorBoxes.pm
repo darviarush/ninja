@@ -251,6 +251,9 @@ sub select_by {
 sub select {
 	my ($self, $who) = @_;
 	
+	# очистка фильтров
+	$self->i->Eval(".$_.filter delete 0 end") for $self->main->jinnee->sections;
+	
 	if($who->{category}) {
 		$self->select_by($who->{category}{class}{package});
 		$self->select_by($who->{category}{class});
@@ -276,7 +279,9 @@ sub packages_init {
 	my ($self) = @_;
 	::msg "- " . (caller(0))[3];
 	my $re = $self->packages->filter;
-	$self->packages->replace(grep { $_->{name} =~ /$re/i } +{name => "*", all => 1}, $self->main->jinnee->package_list);
+	$self->packages->replace(grep { $_->{name} =~ /()$re/i } 
+		+{section => "packages", name => "*", all => 1}, 
+		$self->main->jinnee->package_list);
 	$self
 }
 
@@ -296,14 +301,14 @@ sub package_select {
 		$self->classes->clear;
 		
 		$self->idle("package_select" => sub {
-			$self->classes->append(grep { $_->{name} =~ /$re/i } $self->main->jinnee->class_list(shift @packages));
+			$self->classes->append(grep { $_->{name} =~ /()$re/i } $self->main->jinnee->class_list(shift @packages));
 			0+@packages
 		});
 				
 	} else {
 		my @classes = $self->main->jinnee->class_list($package);
-		::msg "select_package -> get classes", $package, (map {($_->{name}, $re, qr/$re/i, $_->{name} =~ /$re/i? 1:0)} @classes), $re;
-		$self->classes->replace(grep { $_->{name} =~ /$re/i } @classes);
+		
+		$self->classes->replace(grep { $_->{name} =~ /()$re/i } @classes);
 	}
 	
 	$self->categories->clear;
@@ -322,7 +327,7 @@ sub class_select {
 	::msg "- " . (caller(0))[3], $class;
 	
 	my $re = $self->categories->filter;
-	$self->categories->replace(grep { $_->{name} =~ /$re/i } +{name => "*", path => $class->{path}, all => 1}, $self->main->jinnee->category_list($class));
+	$self->categories->replace(grep { $_->{name} =~ /()$re/i } +{section => "categories", name => "*", class => $class, all => 1}, $self->main->jinnee->category_list($class));
 	$self->methods->clear;
 	$self->main->area->to_class($class);
 	
@@ -345,12 +350,12 @@ sub category_select {
 		$self->methods->clear;
 		
 		$self->idle("category_select" => sub {
-			$self->methods->append(grep { $_->{name} =~ /$re/i } $self->main->jinnee->method_list(shift @categories));
+			$self->methods->append(grep { $_->{name} =~ /()$re/i } $self->main->jinnee->method_list(shift @categories));
 			0+@categories;
 		});
 		
 	} else {
-		$self->methods->replace(grep { $_->{name} =~ /$re/i } $self->main->jinnee->method_list($category));
+		$self->methods->replace(grep { $_->{name} =~ /()$re/i } $self->main->jinnee->method_list($category));
 	}
 	
 	$self->main->area->disable;
@@ -598,7 +603,10 @@ sub find_action {
 			::msg $who;
 			
 			# показываем основное окно
-			$i->Eval("wm attributes . -topmost 1");
+			$i->Eval("
+				wm attributes . -topmost 1
+				wm attributes . -topmost 0
+			");
 			
 			# выбираем в нём объект поиска
 			$self->select($who);

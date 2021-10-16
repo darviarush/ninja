@@ -284,7 +284,7 @@ sub find {
 			my $i;
 			my $where;
 
-			while($text =~ /$re/g) {
+			while($text =~ /()$re/g) {
 				my $offset = length $`;
 				my $limit = $offset + length $&;
 				$lex //= $self->color_ref($text);
@@ -386,7 +386,7 @@ sub lex {
 		(?<indent> ^ [\t\ ]* ) |
 		(?<manyline>
 			\|: [\ \t]* \n
-			( ^ [\ \t]* (\n|\z) | (?<mli>[\t\ ]+) (??{ $test_manyline->($+{mli})? qr//: qr/(*FAIL)/ }) [^\n]* (\n|\z) )*
+			( ^ [\ \t]* (\n|\z) | (?<mli>[\t\ ]+) (??{ $test_manyline->($+{mli})? "": qr/(*FAIL)/ }) [^\n]* (\n|\z) )*
 		) |
 
 		(?<remark> ([\ \t]|^) \# [^\n]* ) |

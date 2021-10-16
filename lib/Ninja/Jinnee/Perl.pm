@@ -213,7 +213,7 @@ sub lex {
 		(?<newline> \n ) |
 		(?<space> \s+ )
 	}xmn;
-	while($text =~ /$re/go) {
+	while($text =~ /()$re/go) {
 		my $point = length $`;
 		if($point - $prev != 0) {
 			push @$ret, [substr($`, $prev, $point), "error"];

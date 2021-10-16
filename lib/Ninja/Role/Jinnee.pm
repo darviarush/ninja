@@ -227,7 +227,7 @@ sub file_find_text {
 	$a{ok} = sub {
 		my ($path) = @_;
 		my $f = $self->file_read($path);
-		return if $f !~ $re;
+		return if $f !~ /(?=)$re/;
 		
 		my $x = length $`;
 		# подсчитываем на какой это строке
