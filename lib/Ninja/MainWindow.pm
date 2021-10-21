@@ -41,7 +41,6 @@ sub construct {
 
 	$i->EvalFile("lib/Ninja/tk/main-window.tcl");
 
-	::msg "config load", $config;
 	my $project = $self->project;
 
 	$i->icall(qw/wm geometry ./, $project->{geometry}) if $project->{geometry};
@@ -68,7 +67,6 @@ sub construct {
 		
 		$project->{selectors}{areaCursor} = $self->area->pos if $self->area->enabled;
 		
-		::msg "config save", $config;
 		$config->save;
 	});
 	

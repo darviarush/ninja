@@ -37,22 +37,70 @@ sub put {
 
 #@category Переименование / в системных путях
 
-my $DIVIDE_SIGN = chr 0x2215;
+my %SIGN = (
+	chr 0x00 => chr 0x2400,	# NUL
+	chr 0x01 => chr 0x2401,	# SOH
+	chr 0x02 => chr 0x2402,	# STX
+	chr 0x03 => chr 0x2403,	# ETX
+	chr 0x04 => chr 0x2404,	# EOT
+	chr 0x05 => chr 0x2405,	# ENQ
+	chr 0x06 => chr 0x2406,	# ACK
+	chr 0x07 => chr 0x2407,	# BEL
+	chr 0x08 => chr 0x2408,	# BS
+	chr 0x09 => chr 0x2409,	# HT
+	chr 0x0A => chr 0x240A,	# LF
+	chr 0x0B => chr 0x240B,	# VT
+	chr 0x0C => chr 0x240C,	# FF
+	chr 0x0D => chr 0x240D,	# CR
+	chr 0x0E => chr 0x240E,	# SO
+	chr 0x0F => chr 0x240F,	# SI
+	chr 0x10 => chr 0x2410,	# DLE
+	chr 0x11 => chr 0x2411,	# DC1
+	chr 0x12 => chr 0x2412,	# DC2
+	chr 0x13 => chr 0x2413,	# DC3
+	chr 0x14 => chr 0x2414,	# DC4
+	chr 0x15 => chr 0x2415,	# NAK
+	chr 0x16 => chr 0x2416,	# SYN
+	chr 0x17 => chr 0x2417,	# ETB
+	chr 0x18 => chr 0x2418,	# CAN
+	chr 0x19 => chr 0x2419,	# EM
+	chr 0x1A => chr 0x241A,	# SUB
+	chr 0x1B => chr 0x241B,	# ESC
+	chr 0x1C => chr 0x241C,	# FS
+	chr 0x1D => chr 0x241D,	# GS
+	chr 0x1E => chr 0x241E,	# RS
+	chr 0x1F => chr 0x241F,	# US
+	chr 0x7F => chr 0x2421,	# DEL
 
-# эскейпит часть пути в котором не должно быть слеша
-# заменяет / на аналогичный символ юникода (U+2215)
-sub escape {
-	my ($self, $path) = @_;
-	$path =~ s!/!$DIVIDE_SIGN!oge;
-	$path
-}
+	'/' => chr 0x2215, # 2044
+	'<' => chr 0x2329, # 227A, 2039
+	'>' => chr 0x232A, # 227B, 203A
+	':' => chr 0x2236,
+	'"' => chr 0x2033, # 0x201D
+	'\\' => chr 0x2216,
+	'|' => chr 0x2223, # 23D0
+);
 
-# заменяет юникодовский знак деления (U+2215) на слеш
-sub unescape {
-	my ($self, $path) = @_;
-	$path =~ s!$DIVIDE_SIGN!/!g;
-	$path
-}
+sub _ox { sprintf "\\x{%X}", ord $_[0] }
+my $SIGN_FROM = join "", map { _ox($_) } sort keys %SIGN;
+my $SIGN_TO = join "", map { _ox($SIGN{$_}) } sort keys %SIGN;
+
+my $SGN_FROM = "sub { my (\$self, \$x) = \@_; \$x =~ y/$SIGN_FROM/$SIGN_TO/; \$x }";
+my $SGN_TO = "sub { my (\$self, \$x) = \@_; \$x =~ y/$SIGN_TO/$SIGN_FROM/; \$x }";
+
+*escape = eval $SGN_FROM;
+*unescape = eval $SGN_TO;
+
+# $SIGN_FROM = join "", sort keys %SIGN;
+# $SIGN_TO = join "", map {$SIGN{$_}} sort keys %SIGN;
+
+# my $r1 = Ninja::Role::Jinnee::escape("", $SIGN_FROM);
+# my $r2 = Ninja::Role::Jinnee::unescape("", $SIGN_TO);
+# ::msg "r1", $r1;
+# ::msg "r2", $r2;
+
+# if($r1 eq $SIGN_TO) {print "ok!\n"} else {print "fail!\n"}
+# if($r2 eq $SIGN_FROM) {print "ok!\n"} else {print "fail!\n"}
 
 #@category Файлы
 

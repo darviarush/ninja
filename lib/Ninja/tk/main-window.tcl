@@ -10,37 +10,6 @@ wm protocol . WM_DELETE_WINDOW {
 	destroy .
 }
 
-# редактирование
-bind Entry <Insert> {}
-bind Text <Insert> {}
-bind Entry <Control-a> { event generate %W <<SelectAll>> }
-bind Text <Control-a> { event generate %W <<SelectAll>> }
-
-bind Entry <<Paste>> {
-	catch { %W delete sel.first sel.last }
-	catch {
-		%W insert insert [::tk::GetSelection %W CLIPBOARD]
-		tk::EntrySeeInsert %W
-	}
-}
-
-proc ::tk_textPaste w {
-    if {![catch {::tk::GetSelection $w CLIPBOARD} sel]} {
-	set oldSeparator [$w cget -autoseparators]
-	if {$oldSeparator} {
-	    $w configure -autoseparators 0
-	    $w edit separator
-	}
-	catch { $w delete sel.first sel.last }
-	$w insert insert $sel
-	if {$oldSeparator} {
-	    $w edit separator
-	    $w configure -autoseparators 1
-	}
-    }
-}
-
-
 
 # puts  [ttk::style theme names]
 # puts [ttk::style theme use]
@@ -48,7 +17,7 @@ proc ::tk_textPaste w {
 # # default
 # ttk::style theme use classic
 
-# статусбар
+#@category статусбар
 pack [frame .f] -side bottom -fill x
 pack [label .f.position -text "Line 1, Column 1" ] -side left
 pack [label .f.who -text "packages" ] -side right
@@ -84,7 +53,7 @@ proc key_to_filter {w K} {
 pack [panedwindow .main -orient vertical] -fill both -expand 1
 pack [panedwindow .sections -orient horizontal] -fill both -expand 1
 
-# секции
+#@category секции
 foreach i {packages classes categories methods} {
 	
 	frame .$i
@@ -97,7 +66,7 @@ foreach i {packages classes categories methods} {
 	bind .$i.list <KeyPress> {if {[key_to_filter %W %K] == 1} {break}}
 }
 
-# текст
+#@category текст
 pack [make_scrolled_y [frame .t] [text .t.text -wrap word]] -fill both -expand 1
 
 
@@ -107,16 +76,11 @@ pack [make_scrolled_y [frame .t] [text .t.text -wrap word]] -fill both -expand 1
 
 bind .t.text <Control-f> { puts "hi!"; break}
 
-# при установке курсора меняем и позицию в тулбаре
-rename ::tk::TextSetCursor ::theRealSource::TextSetCursor
-proc ::tk::TextSetCursor args {
-    set res [uplevel 1 ::theRealSource::TextSetCursor $args]
+bind .t.text <<CursorChanged>> {
 	regexp {^(\d+)\.(\d+)} [.t.text index insert] -> line col
 	set col [expr $col + 1]
 	.f.position configure -text "Line $line, Column $col"
-	return res
 }
-
 
 
 	# bind .packages.list <<ListboxSelect>> { puts [list %W %T [%W index active] [%W curselection] [%W index anchor] ] }
@@ -145,7 +109,7 @@ proc balloon {w text} {
 	bind $w <Leave> { catch { clear $after_id }; catch { destroy $w.balloon } }
 }
 
-# диалог поиска
+#@category диалог поиска
 proc find_dialog {} {
 
 	toplevel .s
@@ -209,6 +173,51 @@ proc find_dialog {} {
 	.s.shower add .s.r
 	.s.shower add .s.t
 	
+	bind .s <Escape> { puts "hello!"; wm command .s WM_DELETE_WINDOW }
+	
 	focus .s.top.find
 }
 
+
+#@category редактирование
+bind Entry <Insert> {}
+bind Text <Insert> {}
+bind Entry <Control-a> { event generate %W <<SelectAll>> }
+bind Text <Control-a> { event generate %W <<SelectAll>> }
+
+bind Entry <<Paste>> {
+	catch { %W delete sel.first sel.last }
+	catch {
+		%W insert insert [::tk::GetSelection %W CLIPBOARD]
+		tk::EntrySeeInsert %W
+	}
+}
+
+proc ::tk_textPaste w {
+    if {![catch {::tk::GetSelection $w CLIPBOARD} sel]} {
+	set oldSeparator [$w cget -autoseparators]
+	if {$oldSeparator} {
+	    $w configure -autoseparators 0
+	    $w edit separator
+	}
+	catch { $w delete sel.first sel.last }
+	$w insert insert $sel
+	if {$oldSeparator} {
+	    $w edit separator
+	    $w configure -autoseparators 1
+	}
+    }
+}
+
+# при установке курсора меняем и позицию в тулбаре
+rename ::tk::TextSetCursor ::tk::TextSetCursorOrig
+proc ::tk::TextSetCursor {w pos} {
+    ::tk::TextSetCursorOrig $w $pos
+	event generate $w <<CursorChanged>>
+}
+
+rename ::tk::TextButton1 ::tk::TextSetButton1Orig
+proc ::tk::TextButton1 {w x y} {
+  ::tk::TextSetButton1Orig $w $x $y
+  event generate $w <<CursorChanged>>
+}
