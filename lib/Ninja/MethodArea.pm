@@ -131,7 +131,7 @@ sub to_method {
 	$self->goto("1.end");
 	
 	
-	$self->i->Eval("after 100 {focus .t.text}");
+	$self->i->Eval("after 10 {focus .t.text}");
 	
 	$self
 }
@@ -142,8 +142,8 @@ sub goto {
 	
 	$self->i->Eval("
 		tk::TextSetCursor .t.text $pos
+		.t.text see $pos
 		focus .t.text
-		#.t.text see $pos
 	");
 	$self
 }
@@ -153,6 +153,15 @@ sub pos {
 	my ($self) = @_;
 	my $pos = $self->i->Eval('.t.text index insert');
 	wantarray? split(/\./, $pos): $pos;
+}
+
+# выбирает текст
+sub select {
+	my ($self, $from, $to) = @_;
+	
+	$self->i->Eval(".t.text tag add sel $from $to");
+	
+	$self
 }
 
 1;

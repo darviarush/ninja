@@ -5,12 +5,6 @@ package require Tk
 
 tk appname "Ninja"
 
-wm protocol . WM_DELETE_WINDOW {
-	::perl::on_window_destroy
-	destroy .
-}
-
-
 # puts  [ttk::style theme names]
 # puts [ttk::style theme use]
 # # clam alt default classic
@@ -145,7 +139,9 @@ proc find_dialog {} {
 		foreach w $widgets {eval [list $w] $args}
 	}
 	proc find_line_click {W x y goto} {
+		puts "find_line_click"
 		set cur [tk::TextClosestGap $W $x $y]
+		puts "find_line_click cur $cur"
 		foreach w {.s.r.line .s.r.file} {
 			$w tag delete active_line
 			$w tag configure active_line -background [.packages.list cget -selectbackground]

@@ -604,6 +604,7 @@ sub find_action {
 	my $x = eval { $i->Eval(".t.text get sel.first sel.last") } //
 		$self->$section->sel->{name};
 	$i->invoke(qw/.s.top.find insert end/, $x);
+	$i->invoke(qw/.s.top.find selection range 0 end/);
 	
 	# конфигурация
 	my $project = $self->main->project;
@@ -612,24 +613,27 @@ sub find_action {
 	
 	$i->call(qw/wm protocol .s WM_DELETE_WINDOW/, sub { $self->find_close });	
 
-	# настройки
+	# устанавливаем теги с цветами
 	my $tags = $jinnee->tags;
 	for my $w (qw/.s.r.line .s.r.file .s.t.text/) {
 		$i->invoke($w, qw/tag configure/, $_ => @{$tags->{$_}}) for sort keys %$tags;
 	}
 	
-	# показываем в нижнем окошке 
+	# показываем в нижнем окошке, если не указан goto, иначе - переходим 
 	$i->CreateCommand("::perl::find_line_show" => sub {
 		my ($line) = $i->GetVar("cur") =~ /^(\d+)/;
 		my $goto = $i->GetVar("goto");
-		
-		
-		my $who = $jinnee->{find_param}{result}[$line-1];
+
+		my $res = $jinnee->{find_param}{result}[$line-1];
+		my $from = $res->{select_in_text}{from};
+		my $to = $res->{select_in_text}{to};
+		$from = join "", $from->{line}+1, ".", $from->{char};
+		$to = join "", $to->{line}+1, ".", $to->{char};
 		
 		# перейти на результат
 		if($goto) {
 			# выбираем в основном окне объект поиска
-			$self->select($who);
+			$self->select($res->{who});
 
 			# закрываем окно поиска
 			$self->find_close;
@@ -637,12 +641,13 @@ sub find_action {
 			# - TODO: выделить найденные элементы?
 			# TODO: установить курсор на искомый элемент
 			
-			#$self->main->area->goto($selectors->{areaCursor})
+			$self->main->area->select($from, $to);
+			$self->main->area->goto($to);
 
 			return;
 		}
 
-		my ($linestart, $text) = $jinnee->get($who);
+		my ($linestart, $text) = $jinnee->get($res->{who});
 
 		$i->Eval("
 			.s.t.text configure -state normal
@@ -655,6 +660,12 @@ sub find_action {
 		# TODO: движение построчно курсором
 
 		$i->invoke(qw/.s.t.text insert end/, @$_) for @{$jinnee->color($text)};
+		
+		$i->Eval("
+			.s.t.text tag add find_illumination $from $to
+			#tk::TextSetCursor .s.t.text $to
+			.t.text see $to
+		");
 
 		$i->Eval(".s.t.text configure -state disable");
 	});

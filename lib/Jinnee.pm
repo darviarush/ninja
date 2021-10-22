@@ -297,23 +297,32 @@ sub find {
 				my $k = $i; my $m = $i;
 				$k-- while $k>0 && $lex->[$k-1]{line} == $n;
 				$m++ while $m<$#$lex && $lex->[$m+1]{line} == $n;
-				my $line = [map { my $t=$lex->[$_]{tag}; [$lex->[$_]{lex}, $t =~ /^(space|newline)$/n? (): $t] } $k..$m];
 				
-				push @$line, ["\n"] if $line->[$#$line][0] ne "\n";
+				$m-- if $lex->[$m]{lex} eq "\n";
+				
+				my $line = [map { my $t=$lex->[$_]{tag}; [$lex->[$_]{lex}, $t eq "space"? (): $t] } $k..$m];
 				
 				my $file = $who->{section} eq "methods"? 
 					[[$who->{category}{class}{name}, 'class'], [" "], [$who->{name}, "method"]]:
 					[[$who->{name}, "class"]];
+				push @$file, [" "], [$line_start + $n - 1, "number"];
+
+				unshift(@$line, ["\n"]), unshift @$file, ["\n"] if @{$A->{result}} > 0;
 				
 				push @R, {
 					select => [$offset - $lex->[$k]{offset},
 								$lex->[$m]{limit} < $limit? $lex->[$m]{limit}: 
 									$limit - $lex->[$k]{offset}],
+					select_in_text => {
+						from => $lex->[$k],
+						to => $lex->[$m],
+					},
 					line => $line,
-					file => [@$file, [" "], [$line_start + $n - 1, "number"], ["\n"]],
+					file => $file,
+					who => $who,
 				};
 				
-				push @{$A->{result}}, $who;
+				push @{$A->{result}}, @R;
 			}
 			
 			return \@R if @R;
@@ -539,17 +548,20 @@ sub color_ref {
 	my ($self, $text) = @_;
 
 	my $line = 0;
+	my $char = 0;
 	my $offset = 0;
 	[ map { 
 		my $r = {
-			line=>$line, 
+			line=>$line,
+			char=>$char,
 			lex=>$_->[0],
 			tag=>$_->[1], 
 			offset => $offset,
 			limit => $offset + length($_->[0]),
 		}; 
 		$offset += length $_->[0];
-		$line++ while $_->[0] =~ /\n/g; 
+		$char += length $_->[0];
+		$char = 0, $line++ while $_->[0] =~ /\n/g; 
 		$r 
 	} @{$self->lex($text)} ];
 }

@@ -20,6 +20,10 @@ sub new {
 	}, ref $cls || $cls;
 }
 
+# PATCH: вызывается при удалении процедуры перла внедрённой в Tcl
+sub Tcl::Cmdbase::TRACE_DELETECOMMAND() {}
+
+
 sub i { shift->{i} }
 sub config { shift->{config} }
 sub project { my ($self) = @_; $self->{config}->{project}->{$self->pwd} //= {} }
@@ -44,7 +48,7 @@ sub construct {
 	my $project = $self->project;
 
 	$i->icall(qw/wm geometry ./, $project->{geometry}) if $project->{geometry};
-	my @sec = qw/packages classes categories methods/;
+	my @sec = $self->jinnee->sections;
 	do { $i->icall(".$sec[$_].filter", qw/insert end/, $project->{sections}{filters}[$_]) for 0..3 } if $project->{sections}{filters};
 	do { $i->icall(qw/.sections paneconfigure/, ".$sec[$_]", "-width", $project->{sections}{widths}[$_]) for 0..2 } if $project->{sections}{widths};
 	$i->icall(qw/.sections configure -height /, $project->{sections}->{height}) if $project->{sections}->{height};
@@ -52,35 +56,45 @@ sub construct {
 	#my $sigint = $SIG{INT};
 	#$SIG{INT} = sub { $i->Eval("destroy ."); $sigint->(@_) };
 	
-	$i->CreateCommand("::perl::on_window_destroy", sub {
-		%$project = $project->{find}? (find => $project->{find}): ();
-		
-		$project->{geometry} = $i->icall(qw/wm geometry ./);
-		$project->{sections}{filters}[$_] = $i->Eval(".$sec[$_].filter get") for 0..3;
-		$project->{sections}{widths}[$_] = $i->Eval("winfo width .$sec[$_]") for 0..2;
-		$project->{sections}->{height} = $i->Eval("winfo height .sections");
-		
-		for my $section ($self->jinnee->sections) {
-			$project->{selectors}{$section} = $self->selectors->$section->anchor;
-			last if $self->selectors->{section} eq $section;
-		}
-		
-		$project->{selectors}{areaCursor} = $self->area->pos if $self->area->enabled;
-		
-		$config->save;
-	});
-	
 	$self->{area} = Ninja::MethodArea->new(main => $self)->construct;
 	$self->{selectors} = Ninja::SelectorBoxes->new(main => $self)->construct;
 	$self->{menu} = Ninja::Menu->new(main=>$self)->construct;
+
+	$i->call(qw/wm protocol . WM_DELETE_WINDOW/, sub { $self->close });
 	
 	$i->Eval("tkwait window .");
 	
 	$self;
 }
 
-# вызывается при удалении процедуры перла внедрённой в Tcl
-sub Tcl::Cmdbase::TRACE_DELETECOMMAND() {}
+# закрывает основное окно
+sub close {
+	my ($self) = @_;
+	
+	my $i = $self->i;
+	my $project = $self->project;
+	my @sec = $self->jinnee->sections;
+	
+	%$project = $project->{find}? (find => $project->{find}): ();
+		
+	$project->{geometry} = $i->icall(qw/wm geometry ./);
+	$project->{sections}{filters}[$_] = $i->Eval(".$sec[$_].filter get") for 0..3;
+	$project->{sections}{widths}[$_] = $i->Eval("winfo width .$sec[$_]") for 0..2;
+	$project->{sections}->{height} = $i->Eval("winfo height .sections");
+	
+	for my $section ($self->jinnee->sections) {
+		$project->{selectors}{$section} = $self->selectors->$section->anchor;
+		last if $self->selectors->{section} eq $section;
+	}
+	
+	$project->{selectors}{areaCursor} = $self->area->pos if $self->area->enabled;
+	
+	$self->config->save;
+	
+	$i->Eval("destroy .");
+	
+	$self
+}
 
 
 sub pwd {
