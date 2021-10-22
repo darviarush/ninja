@@ -159,7 +159,10 @@ sub pos {
 sub select {
 	my ($self, $from, $to) = @_;
 	
-	$self->i->Eval(".t.text tag add sel $from $to");
+	$self->i->Eval("
+		focus .t.text
+		.t.text tag add sel $from $to
+	");
 	
 	$self
 }

@@ -45,7 +45,7 @@ sub construct {
 
 	$self->i->call(qw/bind .packages.list <Double-1>/, sub { $self->edit_action });
 	$self->i->call(qw/bind .categories.list <Double-1>/, sub { $self->edit_action });
-		
+	
 	$self->packages_init;
 
 	my $set;
@@ -625,18 +625,16 @@ sub find_action {
 		my $goto = $i->GetVar("goto");
 
 		my $res = $jinnee->{find_param}{result}[$line-1];
-		my $from = $res->{select_in_text}{from};
-		my $to = $res->{select_in_text}{to};
-		$from = join "", $from->{line}+1, ".", $from->{char};
-		$to = join "", $to->{line}+1, ".", $to->{char};
+		
+		my ($from, $to) = @{$res->{select_in_text}};
 		
 		# перейти на результат
 		if($goto) {
-			# выбираем в основном окне объект поиска
-			$self->select($res->{who});
-
 			# закрываем окно поиска
 			$self->find_close;
+
+			# выбираем в основном окне объект поиска
+			$self->select($res->{who}) if $res->{who} != self->$section->sel;
 			
 			# - TODO: выделить найденные элементы?
 			# TODO: установить курсор на искомый элемент

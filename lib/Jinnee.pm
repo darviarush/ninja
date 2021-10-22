@@ -290,7 +290,15 @@ sub find {
 				$lex //= $self->color_ref($text);
 
 				# на какую лексему приходится начало выделения
-				$i++ while $i<$#$lex && $lex->[$i+1]{offset} < $offset;
+				$i++ while $i<$#$lex && $lex->[$i+1]{offset} <= $offset;
+				# и конец:
+				my $j = $i;
+				$j++ while $j<@$lex && $lex->[$j]{limit} < $limit;
+				
+				my $line1 = $lex->[$i]{line};
+				my $char1 = $lex->[$i]{char};
+				my $line2 = $lex->[$j]{line_end};
+				my $char2 = $lex->[$j]{char_end};
 				
 				# выбираем все лексемы находящиеся на строке начала выделения
 				my $n = $lex->[$i]{line};
@@ -307,25 +315,22 @@ sub find {
 					[[$who->{name}, "class"]];
 				push @$file, [" "], [$line_start + $n - 1, "number"];
 
-				unshift(@$line, ["\n"]), unshift @$file, ["\n"] if @{$A->{result}} > 0;
+				unshift(@$line, ["\n"]), unshift @$file, ["\n"] if @{$A->{result}} + @R > 0;
 				
 				push @R, {
 					select => [$offset - $lex->[$k]{offset},
 								$lex->[$m]{limit} < $limit? $lex->[$m]{limit}: 
 									$limit - $lex->[$k]{offset}],
-					select_in_text => {
-						from => $lex->[$k],
-						to => $lex->[$m],
-					},
+					select_in_text => ["$line1.$char1", "$line2.$char2"],
 					line => $line,
 					file => $file,
 					who => $who,
-				};
+				};				
 				
-				push @{$A->{result}}, @R;
+				$i = $j;
 			}
 			
-			return \@R if @R;
+			push(@{$A->{result}}, @R), return \@R if @R;
 		}
 		
 		return @$S? []: 0 if $time < Time::HiRes::time();
@@ -547,7 +552,7 @@ sub color {
 sub color_ref {
 	my ($self, $text) = @_;
 
-	my $line = 0;
+	my $line = 1;
 	my $char = 0;
 	my $offset = 0;
 	[ map { 
@@ -559,9 +564,14 @@ sub color_ref {
 			offset => $offset,
 			limit => $offset + length($_->[0]),
 		}; 
+		
 		$offset += length $_->[0];
 		$char += length $_->[0];
-		$char = 0, $line++ while $_->[0] =~ /\n/g; 
+		$char = 0, $line++ while $_->[0] =~ /\n/g;
+		
+		$r->{line_end} = $line;
+		$r->{char_end} = $char;
+		
 		$r 
 	} @{$self->lex($text)} ];
 }
