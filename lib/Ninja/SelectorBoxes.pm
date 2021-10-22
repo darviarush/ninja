@@ -578,7 +578,7 @@ sub find_close {
 		height => $i->Eval("winfo height .s.r"),
 	};
 	
-	$i->Eval("destroy .s");
+	$i->Eval("catch { destroy .s }");
 	
 	$self
 }
@@ -634,7 +634,7 @@ sub find_action {
 			$self->find_close;
 
 			# выбираем в основном окне объект поиска
-			$self->select($res->{who}) if $res->{who} != self->$section->sel;
+			::msg("select!!!"), $self->select($res->{who}) if $res->{who} != $self->$section->sel;
 			
 			# - TODO: выделить найденные элементы?
 			# TODO: установить курсор на искомый элемент
