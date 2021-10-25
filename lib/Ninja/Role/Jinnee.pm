@@ -181,6 +181,7 @@ sub mkpath {
 
 sub file_save {
 	my ($self, $path, $body) = @_;
+	$self->mkpath($path);
 	my $f;
 	open $f, ">", $path or die "Не могу создать `$path`. Причина: $!";
 	print $f $body;

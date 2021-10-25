@@ -69,13 +69,13 @@ sub method_list {
 # возвращает тело класса
 sub class_get {
 	my ($self, $class) = @_;
-	return 1, $self->file_load("$class->{path}/.\$", "Nil subclass $class->{name}\n\n");
+	return 1, $self->file_read("$class->{path}/.\$");
 }
 
 # Возвращает тело метода раскрашенное разными цветами
 sub method_get {
 	my ($self, $method) = @_;
-	return 1, $self->file_load("$method->{path}", "$method->{name}\n\n");
+	return 1, $self->file_read($method->{path});
 }
 
 
@@ -140,9 +140,13 @@ sub package_rename {
 }
 
 sub class_new {
-	my ($self, $name, $package) = @_;
+	my ($self, $name, $package, $template) = @_;
+	
 	my $class = {section => "classes", package => $package, name => $name, path => "$package->{path}/" . $self->escape($name)};
-	$self->class_get($class);
+	
+	$template //= "Nil subclass $class->{name}\n\n";
+	
+	$self->file_save("$class->{path}/.\$", $template);
 	$class
 }
 
@@ -163,10 +167,11 @@ sub category_rename {
 }
 
 sub method_new {
-	my ($self, $name, $category) = @_;
-	my $class = {section => 'methods', category => $category, name => $name, path => "$category->{path}/" . $self->escape($name). ".\$"};
-	$self->method_get($class);
-	$class
+	my ($self, $name, $category, $template) = @_;
+	my $method = {section => 'methods', category => $category, name => $name, path => "$category->{path}/" . $self->escape($name). ".\$"};
+	$template //= "$method->{name}\n\n";
+	$self->file_save($method->{path}, $template);
+	$method
 }
 
 
