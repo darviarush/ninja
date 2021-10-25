@@ -30,7 +30,6 @@ sub construct {
 		
 		$self->i->call("bind", ".$section.list", "<<ListboxSelect>>", sub {
 			my $x = $jinnee->sin($section) . "_select";
-			::msg "<<ListboxSelect>>: $section - $self->{section} $x";
 			
 			$self->$x if $self->$section->index ne "";
 			
@@ -50,7 +49,7 @@ sub construct {
 
 	my $set;
 	my $selectors = $self->main->project->{selectors};
-	::msg "selectors", $selectors;
+
 	if(0 + %$selectors) {
 		for my $section ($jinnee->sections) {
 			last if !exists $selectors->{$section} || $selectors->{$section} >= $self->$section->size;
@@ -254,7 +253,6 @@ sub select_section {
 	my ($self, $section) = @_;
 	$self->{section} = $section;
 	$self->i->invoke(qw/.f.who configure -text/, $section);
-	#::msg "select_section", $section, $self->$section->sel;
 	$self->$section->activate;
 	$self
 }
@@ -299,7 +297,6 @@ sub select {
 # событие инициализации пакетов
 sub packages_init {
 	my ($self) = @_;
-	::msg "- " . (caller(0))[3];
 	
 	$self->packages->replace(
 		+{section => "packages", name => "*", all => 1}, 
@@ -313,7 +310,6 @@ sub package_select {
 	my ($self, $package) = @_;
 	
 	$package //= $self->packages->sel;
-	::msg "- " . (caller(0))[3], $package;
 
 	#$self->packages_init, $self->packages->select_element(0) if $package->{name} eq "*";
 
@@ -345,7 +341,6 @@ sub class_select {
 	my ($self, $class) = @_;
 	
 	$class //= $self->classes->sel;
-	::msg "- " . (caller(0))[3], $class;
 	
 	$self->categories->replace(
 		+{section => "categories", name => "*", class => $class, all => 1}, 
@@ -361,8 +356,6 @@ sub class_select {
 
 sub category_select {
 	my ($self, $category) = @_;
-	
-	::msg "- " . (caller(0))[3];
 	
 	$category //= $self->categories->sel;
 	
@@ -388,8 +381,6 @@ sub category_select {
 
 sub method_select {
 	my ($self, $method) = @_;
-	
-	::msg "- " . (caller(0))[3];
 	
 	$method //= $self->methods->sel;
 	
@@ -531,7 +522,6 @@ sub restore_action {
 
 	$self->i->Eval("
 		toplevel .restore
-		
 	");
 
 	if($section eq "packages" and !$self->packages->sel->{all}) {
@@ -578,22 +568,24 @@ sub find_close {
 		height => $i->Eval("winfo height .s.r"),
 	};
 	
+	$self->cancel("find_action");
 	$i->Eval("catch { destroy .s }");
 	
 	$self
 }
 
-# найти или заменить
+# найти или заменить: показывает диалог
 sub find_action {
 	my ($self, $local, $replace) = @_;
 	
 	my $jinnee = $self->main->jinnee;
-	my ($section, $idx) = $self->who;	
+	my ($section, $idx) = $self->who;
 	my $i = $self->i;
 	
 	# удаление
-	$i->Eval("catch { destroy .s }");
 	$self->cancel("find_action");
+	$i->Eval("catch { destroy .s }");
+	
 	
 	# создание
 	$i->Eval("find_dialog");
@@ -610,8 +602,6 @@ sub find_action {
 	my $project = $self->main->project;
 	$i->icall(qw/wm geometry .s/, $project->{find}{geometry}) if $project->{find}{geometry};
 	$i->icall(qw/.s.shower paneconfigure .s.r -height/, $project->{find}{height}) if $project->{find}{height};
-	
-	$i->call(qw/wm protocol .s WM_DELETE_WINDOW/, sub { $self->find_close });	
 
 	# устанавливаем теги с цветами
 	my $tags = $jinnee->tags;
@@ -619,67 +609,26 @@ sub find_action {
 		$i->invoke($w, qw/tag configure/, $_ => @{$tags->{$_}}) for sort keys %$tags;
 	}
 	
-	# показываем в нижнем окошке, если не указан goto, иначе - переходим 
-	$i->CreateCommand("::perl::find_line_show" => sub {
-		my ($line) = $i->GetVar("cur") =~ /^(\d+)/;
-		my $goto = $i->GetVar("goto");
-
-		my $res = $jinnee->{find_param}{result}[$line-1];
-		
-		my ($from, $to) = @{$res->{select_in_text}};
-		
-		# перейти на результат
-		if($goto) {
-			# закрываем окно поиска
-			$self->find_close;
-
-			# выбираем в основном окне объект поиска
-			::msg("select!!!"), $self->select($res->{who}) if $res->{who} != $self->$section->sel;
-			
-			# - TODO: выделить найденные элементы?
-			# TODO: установить курсор на искомый элемент
-			
-			$self->main->area->select($from, $to);
-			$self->main->area->goto($to);
-
-			return;
-		}
-
-		my ($linestart, $text) = $jinnee->get($res->{who});
-
-		$i->Eval("
-			.s.t.text configure -state normal
-			.s.t.text delete 1.0 end
-		");
-
-		# TODO: выделение в тексте и see
-		# TODO: переставлять курсор
-		# TODO: замена
-		# TODO: движение построчно курсором
-
-		$i->invoke(qw/.s.t.text insert end/, @$_) for @{$jinnee->color($text)};
-		
-		$i->Eval("
-			.s.t.text tag add find_illumination $from $to
-			#tk::TextSetCursor .s.t.text $to
-			.t.text see $to
-		");
-
-		$i->Eval(".s.t.text configure -state disable");
-	});
-
+	# события
+	$i->call(qw/wm protocol .s WM_DELETE_WINDOW/, sub { $self->find_close });
+	$i->call(qw/bind .s <Escape>/, sub { $self->find_close });
 	
-	# события	
+	# показываем в нижнем окошке, если не указан goto, иначе - переходим
+	# (сам bind в tcl)
+	$i->CreateCommand("::perl::find_line_show" => sub { $self->find_line_show });
+	$i->CreateCommand("::perl::find_goto" => sub { $self->find_goto });
+	
 	$i->Eval("bind .s.top.find <Up> {puts \"%A %K\"}");
 	$i->Eval("bind .s.top.find <Down> {puts \"%A %K\"}");
 	
 	$i->call(qw/bind .s.top.find <KeyRelease>/, sub { $self->find_start });
 	
-	$self->find_start if length $i->Eval(".s.top.find get");
+	$self->find_start;
 	
 	$self
 }
 
+# поиск в файлах
 sub find_start {
 	my ($self) = @_;
 	
@@ -691,10 +640,8 @@ sub find_start {
 	$self->find_list_manip(sub {
 		$i->Eval(".s.r.line delete 1.0 end");
 		$i->Eval(".s.r.file delete 1.0 end");
-		::msg "delete!";
 	});
-	
-	
+
 	my $re = $i->Eval(".s.top.find get");
 	
 	return $self if !length $re;
@@ -722,6 +669,7 @@ sub find_start {
 		return 0 if !ref $res;
 		
 		my $index = $i->Eval(".s.r.line index end-1c");
+		
 		my ($line) = split /\./, $index;
 		for my $r ( @$res ) {
 			$self->find_list_manip(sub {
@@ -739,6 +687,70 @@ sub find_start {
 		
 		return 1;
 	});
+	
+	$self
+}
+
+# выделяет строку
+sub find_line_show {
+	my ($self) = @_;
+	
+	my $jinnee = $self->main->jinnee;
+	my $i = $self->i;
+	
+	my ($line) = $i->GetVar("cur") =~ /^(\d+)/;
+
+	my $res = $jinnee->{find_param}{result}[$line-1];
+
+	$i->Eval("
+		.s.t.text configure -state normal
+		.s.t.text delete 1.0 end
+	");
+
+	# TODO: выделение в тексте и see
+	# TODO: переставлять курсор
+	# TODO: замена
+	# TODO: движение построчно курсором
+
+	my ($linestart, $text) = $jinnee->get($res->{who});
+	$i->invoke(qw/.s.t.text insert end/, @$_) for @{$jinnee->color($text)};
+	
+	my ($from, $to) = @{$res->{select_in_text}};
+	$i->Eval("
+		.s.t.text tag add find_illumination $from $to
+		#tk::TextSetCursor .s.t.text $to
+		.t.text see $to
+	");
+
+	$i->Eval(".s.t.text configure -state disable");
+	
+	$self
+}
+
+# переход к найденному
+sub find_goto {
+	my ($self) = @_;
+	
+	my $jinnee = $self->main->jinnee;
+	my ($section, $idx) = $self->who;
+	my $i = $self->i;
+
+	my ($line) = $i->GetVar("cur") =~ /^(\d+)/;
+
+	my $res = $jinnee->{find_param}{result}[$line-1];
+	
+	# закрываем окно поиска после того, как все начатые на нём события отработают
+	$self->idle(find_close => sub {$self->find_close; 0});
+
+	# выбираем в основном окне объект поиска
+	$self->select($res->{who}) if $res->{who} != $self->$section->sel;
+	
+	# - TODO: выделить найденные элементы?
+	# TODO: установить курсор на искомый элемент
+	
+	my ($from, $to) = @{$res->{select_in_text}};
+	$self->main->area->select($from, $to);
+	$self->main->area->goto($to);
 	
 	$self
 }

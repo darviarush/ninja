@@ -138,10 +138,8 @@ proc find_dialog {} {
 	proc synchScroll {widgets args} {
 		foreach w $widgets {eval [list $w] $args}
 	}
-	proc find_line_click {W x y goto} {
-		puts "find_line_click"
+	proc find_line_show {W x y} {
 		set cur [tk::TextClosestGap $W $x $y]
-		puts "find_line_click cur $cur"
 		foreach w {.s.r.line .s.r.file} {
 			$w tag delete active_line
 			$w tag configure active_line -background [.packages.list cget -selectbackground]
@@ -149,6 +147,10 @@ proc find_dialog {} {
 		}
 		.s.r.line see $cur
 		::perl::find_line_show
+	}
+	proc find_goto {W x y} {
+		set cur [tk::TextClosestGap $W $x $y]
+		::perl::find_goto
 	}
 	
 	scrollbar .s.r.scrollbar -orient vertical -width 10 -command {synchScroll {.s.r.line .s.r.file} yview}
@@ -159,8 +161,8 @@ proc find_dialog {} {
 	foreach w {.s.r.line .s.r.file} {
 		#$w insert end [exec cat /home/dart/.bashrc]
 		$w configure -state disabled -cursor arrow -wrap none -yscrollcommand {setScroll .s.r.scrollbar}
-		bind $w <1> { find_line_click %W %x %y 0 }
-		bind $w <Double-1> { find_line_click %W %x %y 1 }
+		bind $w <1> { find_line_show %W %x %y }
+		bind $w <Double-1> { find_goto %W %x %y }
 	}
 	
 	pack [make_scrolled_y [frame .s.t] [text .s.t.text -wrap word -state disabled]] -fill both -expand 1
@@ -168,8 +170,6 @@ proc find_dialog {} {
 	
 	.s.shower add .s.r
 	.s.shower add .s.t
-	
-	bind .s <Escape> { puts "hello!"; wm command .s WM_DELETE_WINDOW }
 	
 	focus .s.top.find
 }
