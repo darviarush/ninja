@@ -53,9 +53,6 @@ sub construct {
 	do { $i->icall(qw/.sections paneconfigure/, ".$sec[$_]", "-width", $project->{sections}{widths}[$_]) for 0..2 } if $project->{sections}{widths};
 	$i->icall(qw/.sections configure -height /, $project->{sections}->{height}) if $project->{sections}->{height};
 	
-	#my $sigint = $SIG{INT};
-	#$SIG{INT} = sub { $i->Eval("destroy ."); $sigint->(@_) };
-	
 	$self->{area} = Ninja::MethodArea->new(main => $self)->construct;
 	$self->{selectors} = Ninja::SelectorBoxes->new(main => $self)->construct;
 	$self->{menu} = Ninja::Menu->new(main=>$self)->construct;
@@ -82,10 +79,11 @@ sub close {
 	$project->{sections}{widths}[$_] = $i->Eval("winfo width .$sec[$_]") for 0..2;
 	$project->{sections}->{height} = $i->Eval("winfo height .sections");
 	
-	for my $section ($self->jinnee->sections) {
-		$project->{selectors}{$section} = $self->selectors->$section->anchor;
-		last if $self->selectors->{section} eq $section;
-	}
+	$project->{sel} = $self->selectors->get_essence;
+	# for my $section ($self->jinnee->sections) {
+		# $project->{selectors}{$section} = $self->selectors->$section->anchor;
+		# last if $self->selectors->{section} eq $section;
+	# }
 	
 	$project->{selectors}{areaCursor} = $self->area->pos if $self->area->enabled;
 	

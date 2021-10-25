@@ -178,8 +178,6 @@ proc find_dialog {} {
 #@category редактирование
 bind Entry <Insert> {}
 bind Text <Insert> {}
-bind Entry <Control-a> { event generate %W <<SelectAll>> }
-bind Text <Control-a> { event generate %W <<SelectAll>> }
 
 bind Entry <<Paste>> {
 	catch { %W delete sel.first sel.last }

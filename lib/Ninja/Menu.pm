@@ -53,14 +53,16 @@ sub construct {
 	
 	
 	$self->cascade('Редактор');
-		# $self->command('Копировать', "Control-c, Control-Insert", "event generate . <<Copy>>");
-		# $self->command('Вставить', "Control-v, Shift-Insert", "event generate . <<Paste>>");
-		# $self->command('Вырезать', "Control-x", "event generate . <<Cut>>");
-		#$self->separator;
-		# $self->command('Выделить всё', "Control-a", sub { $main->area->select_all });
-		#$self->separator;
-		$self->command('Дублировать строку', "Control-d", '.t.text insert {insert lineend} "\\n[.t.text get {insert linestart} {insert lineend}]"', '.t.text');
-		$self->command('Удалить строку', "Control-Delete", '.t.text delete {insert linestart} {insert lineend+1c}', '.t.text');
+		$self->command('Копировать', "Control-c, Control-Insert", "event generate %W <<Copy>>", 'Text Entry');
+		$self->command('Вставить', "Control-v, Shift-Insert", "event generate %W <<Paste>>", 'Text Entry');
+		$self->command('Вырезать', "Control-x", "event generate %W <<Cut>>", 'Text Entry');
+		$self->separator;
+		$self->command('Выделить всё', "Control-a", 'event generate %W <<SelectAll>>', 'Text Entry');
+		$self->separator;
+		$self->command('Дублировать строку', "Control-d", sub { $main->area->line_dup_action }, '.t.text');
+		$self->command('Удалить строку', "Control-Delete", sub { $main->area->line_del_action }, '.t.text');
+		$self->command('Cтроку вверх', "Control-Up", sub { $main->area->line_up_action }, '.t.text');
+		$self->command('Cтроку вниз', "Control-Down", sub { $main->area->line_down_action }, '.t.text');
 		$self->separator;
 		$self->command('Найти', "Control-f", sub { $main->selectors->find_action(1, 0) }, '.t.text');
 		$self->command('Заменить', "Control-r", sub { $main->selectors->find_action(1, 1) }, '.t.text');

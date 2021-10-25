@@ -18,8 +18,9 @@ sub text { shift->i->Eval(".t.text get 1.0 end-1c") }
 sub construct {
 	my ($self) = @_;
 
+	# TODO: подсвечивать слово под курсором
 	$self->i->call(qw/bind .t.text <KeyRelease>/, sub { $self->update });
-
+	
 	my $tags = $self->main->jinnee->tags;
 
 	$self->i->invoke(qw/.t.text tag configure/, $_ => @{$tags->{$_}}) for sort keys %$tags;
@@ -31,6 +32,8 @@ sub construct {
 	$self
 }
 
+
+# обновление 
 sub update {
 	my ($self) = @_;
 
@@ -148,23 +151,87 @@ sub goto {
 	$self
 }
 
-# посиция курсора
+# позиция курсора или указанная
 sub pos {
-	my ($self) = @_;
-	my $pos = $self->i->Eval('.t.text index insert');
+	my ($self, $pos) = @_;
+	$pos //= "insert";
+	my $pos = $self->i->invoke(qw/.t.text index/, $pos);
 	wantarray? split(/\./, $pos): $pos;
+}
+
+# количество строк в тексте. Совпадает с последней строкой
+sub lines {
+	my ($self) = @_;
+	my ($lines) = $self->pos('end');
+	$lines
 }
 
 # выбирает текст
 sub select {
 	my ($self, $from, $to) = @_;
-	
 	$self->i->Eval("
 		focus .t.text
 		.t.text tag add sel $from $to
 	");
-	
 	$self
+}
+
+# передвигает выделенные строки или строку под курсором вверх
+sub line_up_action {
+	my ($self) = @_;
+	
+	# TODO: перемещение для выделенного блока
+	#my () = eval { $self->pos("sel.first") };
+	
+	my ($line, $char) = $self->pos;
+	
+	return if $line == 1;
+	
+	my $this_line = $self->i->Eval(".t.text get {insert linestart} {insert lineend}");
+	$self->i->Eval(".t.text delete {insert linestart} {insert lineend+1c}");
+	
+	$line--;
+	$self->i->invoke(qw/.t.text insert/, "$line.0", "$this_line\n");
+	
+	$self->goto("$line.$char");
+	
+	$self->update;
+}
+
+# # передвигает выделенные строки или строку под курсором вниз
+sub line_down_action {
+	my ($self) = @_;
+	
+	my ($line, $char) = $self->pos;
+	return if $line == $self->lines;
+	
+	my $this_line = $self->i->Eval(".t.text get {insert linestart} {insert lineend}");
+	$self->i->Eval(".t.text delete {insert linestart} {insert lineend+1c}");
+	
+	$self->i->invoke(qw/.t.text insert/, "$line.end", "\n$this_line");
+	$line++;
+	
+	$self->goto("$line.$char");
+	
+	$self->update;
+}
+
+# дублирует строку
+sub line_dup_action {
+	my ($self) = @_;
+	$self->i->Eval('
+		.t.text insert {insert lineend} "\\n[.t.text get {insert linestart} {insert lineend}]"
+	');
+	$self->update;
+}
+
+# удаляет строку
+sub line_del_action {
+	my ($self) = @_;
+	$self->i->Eval('
+		.t.text delete {insert linestart} {insert lineend+1c}
+	');
+	$self->update;
 }
 
 1;

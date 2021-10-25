@@ -34,6 +34,11 @@ sub put {
 	else { $self->method_put($who, $text) }
 }
 
+# сравнение объектов
+sub equal {
+	my ($self, $who1, $who2) = @_;
+	scalar($who1 == $who2 || $who1->{path} eq $who2->{path})
+}
 
 #@category Переименование / в системных путях
 

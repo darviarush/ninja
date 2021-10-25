@@ -47,27 +47,36 @@ sub construct {
 	
 	$self->packages_init;
 
-	my $set;
-	my $selectors = $self->main->project->{selectors};
-
-	if(0 + %$selectors) {
-		for my $section ($jinnee->sections) {
-			last if !exists $selectors->{$section} || $selectors->{$section} >= $self->$section->size;
-			
-			$self->$section->select_element($selectors->{$section});
-			my $meth = $jinnee->sin($section) . "_select";
-			$self->$meth;
-			
-			$set++;
-		}
-		
-		$self->main->area->goto($selectors->{areaCursor}) if $selectors->{areaCursor};
-	}
-	
-	if(!$set) {
+	my $sel = $self->main->project->{sel};
+	if($sel) {
+		$self->select($sel);
+	} else {
 		$self->packages->select_element(0); 
 		$self->package_select;
 	}
+
+	# my $set;
+	# my $selectors = $self->main->project->{selectors};
+	# ::msg 'hi!', $selectors;
+
+	# if(0 + %$selectors) {
+		# for my $section ($jinnee->sections) {
+			# last if !exists $selectors->{$section} || $selectors->{$section} >= $self->$section->size;
+			
+			# $self->$section->select_element($selectors->{$section});
+			# my $meth = $jinnee->sin($section) . "_select";
+			# $self->$meth;
+			
+			# $set++;
+		# }
+		
+		# $self->main->area->goto($selectors->{areaCursor}) if $selectors->{areaCursor};
+	# }
+	
+	# if(!$set) {
+		# $self->packages->select_element(0); 
+		# $self->package_select;
+	# }
 	
 	$self
 }
@@ -200,6 +209,7 @@ package Ninja::Tk::Listbox {
 		my $n = $self->{name};
 		$self->i->Eval("$n itemconfigure $i -background [$n cget -background]") if $i ne "" && $i<$self->size;
 		$self->{active_idx} = my $index = $self->index;
+		die "activate: Индекс обязан быть!" if $index eq "";
 		$self->i->Eval("
 			$n itemconfigure $index -background [$n cget -selectbackground]
 			$n see $index
@@ -209,9 +219,16 @@ package Ninja::Tk::Listbox {
 	sub scan {
 		my ($self, $who) = @_;
 		my $i = 0;
-		for(@{$self->{HRAN}}) {
-			return $i if $_->{path} eq $who->{path};
-			$i++;
+		if(defined $who->{path}) {
+			for(@{$self->{HRAN}}) {
+				return $i if $_->{path} eq $who->{path};
+				$i++;
+			}
+		} else {
+			for(@{$self->{HRAN}}) {
+				return $i if !defined $_->{path} and $who->{name} eq $_->{name};
+				$i++;
+			}
 		}
 		return undef;
 	}
@@ -257,37 +274,56 @@ sub select_section {
 	$self
 }
 
-# вспомогательный метод для выбора указанной сущности
+# возвращает сущность описывающую состояние секций с учётом "*"-к и др. элементов
+sub get_essence {
+	my ($self) = @_;
+	my ($section1, $idx) = $self->who;
+	my $jinnee = $self->main->jinnee;
+	
+	my @sel;
+	my $flag;
+	for my $section ( reverse $jinnee->sections ) {
+		$flag = 1 if $section eq $section1;
+		next if !$flag;
+		my $sel = {%{$self->$section->sel}};
+		$sel[$#sel]{$jinnee->sin($section)} = $sel if @sel;
+		push @sel, $sel;
+	}
+
+	$sel[0]
+}
+
+# выбирает элемент
 sub select_by {
-	my ($self, $who) = @_;
+	my ($self, $who, $cb) = @_;
 	my $section = $who->{section};
 	my $select = $self->main->jinnee->sin($section) . "_select";
 	my $idx = $self->$section->scan($who);
 	$self->$section->select_element($idx) if defined $idx;
-	$self->$select($who);
+	$self->$select($who, $cb);
 }
 
 # выбирает сущность
 sub select {
 	my ($self, $who) = @_;
 	
-	# очистка фильтров
-	$self->i->Eval(".$_.filter delete 0 end") for $self->main->jinnee->sections;
-	
 	if($who->{category}) {
-		$self->select_by($who->{category}{class}{package});
-		$self->select_by($who->{category}{class});
-		$self->select_by($who->{category});
-		$self->select_by($who);
+		$self->select_by($who->{category}{class}{package}, sub {
+			$self->select_by($who->{category}{class});
+			$self->select_by($who->{category});
+			$self->select_by($who);
+		});
 	}
 	elsif($who->{class}) {
-		$self->select_by($who->{class}{package});
-		$self->select_by($who->{class});
-		$self->select_by($who);
+		$self->select_by($who->{class}{package}, sub {
+			$self->select_by($who->{class});
+			$self->select_by($who);
+		});
 	}
 	elsif($who->{package}) {
-		$self->select_by($who->{package});
-		$self->select_by($who);
+		$self->select_by($who->{package}, sub {
+			$self->select_by($who);
+		});
 	}
 	else {
 		$self->select_by($who);
@@ -307,11 +343,9 @@ sub packages_init {
 
 # событие на выбор пакета
 sub package_select {
-	my ($self, $package) = @_;
+	my ($self, $package, $cb) = @_;
 	
 	$package //= $self->packages->sel;
-
-	#$self->packages_init, $self->packages->select_element(0) if $package->{name} eq "*";
 
 	if($package->{all}) {
 		my @packages = @{$self->packages->list}[1..$self->packages->size-1];
@@ -320,12 +354,15 @@ sub package_select {
 		
 		$self->idle("package_select" => sub {
 			$self->classes->append($self->main->jinnee->class_list(shift @packages));
-			0+@packages
+			my $stay = @packages;
+			$cb->() if $stay == 0 && $cb;
+			$stay
 		});
-				
+		
 	} else {
 		my @classes = $self->main->jinnee->class_list($package);
 		$self->classes->replace(@classes);
+		$cb->() if $cb;
 	}
 	
 	$self->categories->clear;
@@ -363,12 +400,7 @@ sub category_select {
 		my @categories = @{$self->categories->list}[1..$self->categories->size-1];
 
 		$self->methods->clear;
-		
-		$self->idle("category_select" => sub {
-			$self->methods->append($self->main->jinnee->method_list(shift @categories));
-			0+@categories;
-		});
-		
+		$self->methods->append($self->main->jinnee->method_list($_)) for @categories;
 	} else {
 		$self->methods->replace($self->main->jinnee->method_list($category));
 	}
@@ -556,24 +588,6 @@ sub restore_action {
 	}
 }
 
-# закрыть диалог поиска
-sub find_close {
-	my ($self) = @_;
-
-	my $i = $self->i;
-	my $project = $self->main->project;
-	
-	$project->{find} = {
-		geometry => $i->icall(qw/wm geometry .s/),
-		height => $i->Eval("winfo height .s.r"),
-	};
-	
-	$self->cancel("find_action");
-	$i->Eval("catch { destroy .s }");
-	
-	$self
-}
-
 # найти или заменить: показывает диалог
 sub find_action {
 	my ($self, $local, $replace) = @_;
@@ -585,14 +599,14 @@ sub find_action {
 	# удаление
 	$self->cancel("find_action");
 	$i->Eval("catch { destroy .s }");
-	
-	
+
 	# создание
 	$i->Eval("find_dialog");
 	
 	$i->SetVar("local", $local);
 	$i->SetVar("show_replace", $replace);
 	
+	# в ввод поиска записываем выделенный текст или наименование объекта из активной секции
 	my $x = eval { $i->Eval(".t.text get sel.first sel.last") } //
 		$self->$section->sel->{name};
 	$i->invoke(qw/.s.top.find insert end/, $x);
@@ -618,6 +632,7 @@ sub find_action {
 	$i->CreateCommand("::perl::find_line_show" => sub { $self->find_line_show });
 	$i->CreateCommand("::perl::find_goto" => sub { $self->find_goto });
 	
+	# TODO: переходить клавишами
 	$i->Eval("bind .s.top.find <Up> {puts \"%A %K\"}");
 	$i->Eval("bind .s.top.find <Down> {puts \"%A %K\"}");
 	
@@ -739,16 +754,17 @@ sub find_goto {
 
 	my $res = $jinnee->{find_param}{result}[$line-1];
 	
+	my ($from, $to) = @{$res->{select_in_text}};
+	
 	# закрываем окно поиска после того, как все начатые на нём события отработают
-	$self->idle(find_close => sub {$self->find_close; 0});
+	$self->idle(find_close => sub {
+		$self->find_close; 
+		$self->main->area->select($from, $to); 
+	0});
 
 	# выбираем в основном окне объект поиска
 	$self->select($res->{who}) if $res->{who} != $self->$section->sel;
 	
-	# - TODO: выделить найденные элементы?
-	# TODO: установить курсор на искомый элемент
-	
-	my ($from, $to) = @{$res->{select_in_text}};
 	$self->main->area->select($from, $to);
 	$self->main->area->goto($to);
 	
@@ -761,6 +777,25 @@ sub find_list_manip {
 	$self->i->Eval(".s.r.line configure -state normal; .s.r.file configure -state normal");
 	$sub->();
 	$self->i->Eval(".s.r.line configure -state disable; .s.r.file configure -state disable");
+	$self
+}
+
+# закрыть диалог поиска
+sub find_close {
+	my ($self) = @_;
+
+	my $i = $self->i;
+	my $project = $self->main->project;
+	
+	# сохраняем конфигурацию
+	$project->{find} = {
+		geometry => $i->icall(qw/wm geometry .s/),
+		height => $i->Eval("winfo height .s.r"),
+	};
+	
+	$self->cancel("find_action");
+	$i->Eval("catch { destroy .s }");
+	
 	$self
 }
 
