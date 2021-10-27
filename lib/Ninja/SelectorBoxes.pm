@@ -345,6 +345,12 @@ sub packages_init {
 sub package_select {
 	my ($self, $package, $cb) = @_;
 	
+	$self->categories->clear;
+	$self->methods->clear;
+	$self->main->area->disable;
+
+	$self->select_section("packages");
+
 	$package //= $self->packages->sel;
 
 	if($package->{all}) {
@@ -365,12 +371,6 @@ sub package_select {
 		$cb->() if $cb;
 	}
 	
-	$self->categories->clear;
-	$self->methods->clear;
-	$self->main->area->disable;
-
-	$self->select_section("packages");	
-
 	$self
 }
 
