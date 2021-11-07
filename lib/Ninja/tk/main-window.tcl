@@ -68,7 +68,7 @@ pack [make_scrolled_y [frame .t] [text .t.text -wrap word]] -fill both -expand 1
 .main add .t
 
 
-bind .t.text <Control-f> { puts "hi!"; break}
+#bind .t.text <Control-f> { puts "hi!"; break}
 
 bind .t.text <<CursorChanged>> {
 	regexp {^(\d+)\.(\d+)} [.t.text index insert] -> line col
@@ -96,18 +96,27 @@ proc open_as_modal {$w $top} {
 
 # подсказка. висит, пока указатель мышки над элементом
 proc balloon {w text} {
-	bind $w <Enter> { set after_id [after 300 {  
-		toplevel $w.balloon -background #666
-		pack [label $w.balloon.label -text $text]
-	}] }
-	bind $w <Leave> { catch { clear $after_id }; catch { destroy $w.balloon } }
+	set ::text($w) $text
+	bind $w <Enter> { 
+		set ::after_id(%W) [after 500 {
+			set t [toplevel %W.balloon -background #000 -foregraund #fff]
+			wm overrideredirect $t 1
+			wm attributes $t -type tooltip
+			pack [label %W.balloon.label -text $::text(%W)]
+			wm geometry %W.balloon "+%X+%Y"
+		}]
+	}
+	bind $w <Leave> {
+		catch { after cancel $::after_id(%W) }
+		catch { destroy %W.balloon } 
+	}
 }
 
 #@category диалог поиска
 proc find_dialog {} {
 
 	toplevel .s
-	wm title .s {Поиск и замена. 0 совпадений в 0 файлов}
+	wm title .s {Поиск и замена}
 	#pack [label .s.status -text {0 совпадений в 0 файлов}] -side left
 	
 	pack [frame .s.top] -fill x
@@ -118,6 +127,12 @@ proc find_dialog {} {
 	pack [checkbutton .s.top.regex -variable regex -text {Re*}] -side left
 	pack [checkbutton .s.top.local -variable local -text {IN}] -side left
 	pack [checkbutton .s.top.show_replace -variable show_replace -text {A->B}] -side left
+	
+	balloon .s.top.match_case "С учётом регистра"
+	balloon .s.top.word_only "Только целые слова"
+	balloon .s.top.regex "Регулярное выражение"
+	balloon .s.top.local "В текущем классе/методе"
+	balloon .s.top.show_replace "Замена"
 	
 	pack [frame .s.replace] -fill x
 	pack [entry .s.replace.entry] -side left -fill x -expand 1
