@@ -216,19 +216,16 @@ package Ninja::Tk::Listbox {
 		");
 	}
 	
+	sub _compare { 
+		my ($k, $who) = @_;
+		keys(%$k) == keys(%$who) and keys(%$k) == grep { exists $who->{$_} and $k->{$_} eq $who->{$_} } keys %$k 
+	}
 	sub scan {
 		my ($self, $who) = @_;
 		my $i = 0;
-		if(defined $who->{path}) {
-			for(@{$self->{HRAN}}) {
-				return $i if $_->{path} eq $who->{path};
-				$i++;
-			}
-		} else {
-			for(@{$self->{HRAN}}) {
-				return $i if !defined $_->{path} and $who->{name} eq $_->{name};
-				$i++;
-			}
+		for my $k (@{$self->{HRAN}}) {
+			return $i if _compare($k, $who);
+			$i++;
 		}
 		return undef;
 	}
@@ -237,7 +234,7 @@ package Ninja::Tk::Listbox {
 		my ($self, $who) = @_;
 		my $i = 0;
 		for(@{$self->{A}}) {
-			return $i if $_ == $who;
+			return $i if _compare($_, $who);
 			$i++;
 		}
 		return undef;

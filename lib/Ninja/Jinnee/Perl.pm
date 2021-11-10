@@ -16,6 +16,7 @@ sub new {
 
 #@category Списки
 
+# возвращает множество в INC - список пакетов и список модулей в пакете [-]
 sub package_list_info {
 	my ($self) = @_;
 
@@ -27,7 +28,7 @@ sub package_list_info {
 	for my $inc (@{$self->{INC}}) {
 		for($self->ls($inc)) {
 			my $name = substr $_, 1+length $inc;
-			my $package = +{ path => $_, name => $name };
+			my $package = +{ section => "packages", inc => $inc, path => $_, name => $name };
 			if(-d $_) {
 				push @packages, $package;
 				$package{$name} = 1;
@@ -38,14 +39,15 @@ sub package_list_info {
 		}
 	}
 
+	# Модули, что не имеют своих каталогов будут входить в пакет [-]
 	for(@files) {
 		if(exists $package{$_->{name}}) { push @packages, $_; }
 		else { push @nouname, $_; }
 	}
 	
 	return +{
-		packages => [@nouname? {name => "[-]", nouname => 1}: (), sort { $a->{name} cmp $b->{name} } @packages],
-		nouname => \@nouname,
+		packages => [@nouname? {section => "packages", name => "[-]", nouname => 1}: (), sort { $a->{name} cmp $b->{name} } @packages],
+		nouname => [sort { $a->{name} cmp $b->{name} } @nouname],
 	}
 }
 
@@ -63,20 +65,24 @@ sub package_list {
 sub class_list {
 	my ($self, $package) = @_;
 	
-	my $info = $self->package_list_info;
-	
-	return @{$info->{nouname}} if $package->{nouname};
+	return map {
+		$_->{section} = "classes";
+		$_->{package} = $package;
+	$_ } @{$self->package_list_info->{nouname}} if $package->{nouname};
 	
 	map { my $path = $_; my ($supername) = m!([^/]*)$!;
 		-f $path? +{ path => $path, name => do { $supername =~ s!\.pm$!!; $supername } }:
-		map { +{ path => $_, name => do {
-			my $name = substr $_, 1+length $path;
-			$name =~ s!\.[^\./]*$!!;
-			$name =~ s!/!::!g;
-			"${supername}::$name"
+		map { +{ 
+			section => "classes",
+			package => $package,
+			path => $_,
+			name => do {
+				my $name = substr $_, 1+length $path;
+				$name =~ s!\.[^\./]*$!!;
+				$name =~ s!/!::!g;
+				"${supername}::$name"
 		} } } grep { -f $_ } $self->find($path)
-	} 
-	$package->{all}? (map { $self->ls($_) } @{$self->{INC}}): 
+	}
 	$package->{path}
 }
 
@@ -90,23 +96,29 @@ sub category_list {
 	
 	my @cat;
 	while(/^#\@category[ \t]+(.*?)[ \t]*$/gm) {
-		push @cat, {path=>$path, name=>$1};
+		push @cat, {section=>"categories", class=>$class, path=>$path, name=>$1};
 	}
 	
 	@cat
 }
 
-# список методов. $category может быть '*'
+# список методов
 sub method_list {
 	my ($self, $category) = @_;
 	
 	local $_ = $self->file_read($category->{path});
 	
-	($_) = /^#\@category[ \t]+\E$category->{name}\R[ \t]*$(.*?)(^#category\b|\z)/ms if !$category->{all};
+	($_) = /^#\@category[ \t]+\Q$category->{name}\E[ \t]*$(.*?)(^#category\b|\z)/ms or do {
+		warn "Категория $category->{name} в $category->{path} отсутствует";
+		return;
+	};
 	
-	map { my $path = $_;
-		map { +{ path => $_, name => substr $_, 1+length($path), -2 } } grep { /\.\$\z/ } $self->ls($path)
-	} $category->{all}? $self->ls($category->{path}): $category->{path}
+	my @methods;
+	while(/^sub[ \t]+([\w:]+)/gm) {
+		push @methods, { section => "methods", category => $category, name => $1 };
+	}
+
+	@methods
 }
 
 
@@ -116,7 +128,7 @@ sub method_list {
 sub class_get {
 	my ($self, $class) = @_;
 	
-	my $file = $self->file_load($class->{path}, "package $class->{name};
+	my $file = $self->file_read($class->{path}); "package $class->{name};
 # 
 use common::sense;
 
@@ -127,9 +139,9 @@ bless {
 }, ref \$cls || \$cls;
 }
 
-1;");
+1;";
 	
-	my ($new) = $file =~ m!^(.*?)(\nsub\b|$)!s;
+	my ($new) = $file =~ m!^(.*?)(\nsub\b|\n#\@category\b|$)!s;
 	
 	return 1, $new;
 }
@@ -137,10 +149,17 @@ bless {
 # Возвращает номер строки и тело метода
 sub method_get {
 	my ($self, $method) = @_;
-	my $body = $self->file_load($method->{path}, "sub $method->{name} {\n\tmy (\$self) = \@_;\n\n\t\$self\n}\n");
+	my $file = $self->file_read($method->{path}); "sub $method->{name} {\n\tmy (\$self) = \@_;\n\n\t\$self\n}\n";
 	
-	return 1, $body;
+	my ($before, $body) = $file =~ /\A(.*^)(sub\s+\Q$method->{name}\E.*^\})/ms;
+	
+	my $line = 1;
+	$line++ while $before =~ /\n/g;
+	
+	return $line, $body;
 }
+
+#@category Писатели
 
 #@category Синтаксис
 
@@ -181,7 +200,7 @@ sub tags {
 	    # -slant => 'italic'
     # ],
 
-sub lex {
+sub color {
 	my ($self, $text) = @_;
 
 	my $prev = 0;
