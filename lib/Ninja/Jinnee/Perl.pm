@@ -221,6 +221,7 @@ sub color {
 		(?<array> \@\w+) |
 		(?<hash> \%\w+) |
 		
+		(?<option> -\w+ \b) |
 		
 		(?<operator> 
 			~~
@@ -242,14 +243,12 @@ sub color {
 			| //
 			| ..?.?
 			| \? | \:
-			| \b (goto | last | next | redo | dump) \b
 			| , | =>
 		) =? |
 		
-		(?<option> -\w+ \b) |
+		\b (?<keyword> continue | foreach | require | package | scalar | format | unless | local | until | while | elsif | next | last | goto | else | redo | sub | for | use | no | if | my ) \b |
 		
-		(?<keyword> 
-		) |
+		\b (?<func> getprotobynumber | getprotobyname | getservbyname | gethostbyaddr | gethostbyname | getservbyport | getnetbyaddr | getnetbyname | getsockname | getpeername | setpriority | getprotoent | setprotoent | getpriority | endprotoent | getservent | setservent | endservent | sethostent | socketpair | getsockopt | gethostent | endhostent | setsockopt | setnetent | quotemeta | localtime | prototype | getnetent | endnetent | rewinddir | wantarray | getpwuid | closedir | getlogin | readlink | endgrent | getgrgid | getgrnam | shmwrite | shutdown | readline | endpwent | setgrent | readpipe | formline | truncate | dbmclose | syswrite | setpwent | getpwnam | getgrent | getpwent | ucfirst | sysread | setpgrp | shmread | sysseek | sysopen | telldir | defined | opendir | connect | lcfirst | getppid | binmode | syscall | sprintf | getpgrp | readdir | seekdir | waitpid | reverse | unshift | symlink | dbmopen | semget | msgrcv | rename | listen | chroot | msgsnd | shmctl | accept | unpack | exists | fileno | shmget | system | unlink | printf | gmtime | msgctl | semctl | values | rindex | substr | splice | length | msgget | select | socket | return | caller | delete | alarm | ioctl | index | undef | lstat | times | srand | chown | fcntl | close | write | umask | rmdir | study | sleep | chomp | untie | print | utime | mkdir | atan2 | split | crypt | flock | chmod | BEGIN | bless | chdir | semop | shift | reset | link | stat | chop | grep | fork | dump | join | open | tell | pipe | exit | glob | warn | each | bind | sort | pack | eval | push | keys | getc | kill | seek | sqrt | send | wait | rand | tied | read | time | exec | recv | eof | chr | int | ord | exp | pos | pop | sin | log | abs | oct | hex | tie | cos | vec | END | ref | map | die | \-C | \-b | \-S | \-u | \-t | \-p | \-l | \-d | \-f | \-g | \-s | \-z | uc | \-k | \-e | \-O | \-T | \-B | \-M | do | \-A | \-X | \-W | \-c | \-R | \-o | \-x | lc | \-w | \-r ) \b |
 		
 		(?<method> \b [a-z]\w+ \b ) |
 		
