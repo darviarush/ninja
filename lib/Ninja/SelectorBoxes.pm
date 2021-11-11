@@ -180,6 +180,7 @@ package Ninja::Tk::Listbox {
 		$self->delete($idx);
 		my ($elem) = splice @{$self->{HRAN}}, $idx, 1;
 		my $index = $self->scan_all($elem);
+		die "Ничего не найдено!" if !defined $index;
 		splice @{$self->{A}}, $index, 1;
 		$self->select_element($idx==@{$self->{HRAN}}? $idx-1: $idx) if @{$self->{HRAN}};
 	}
@@ -218,13 +219,13 @@ package Ninja::Tk::Listbox {
 	
 	sub _compare { 
 		my ($k, $who) = @_;
-		keys(%$k) == keys(%$who) and keys(%$k) == grep { exists $who->{$_} and $k->{$_} eq $who->{$_} } keys %$k 
+		$k->{name} eq $who->{name} && $k->{path} eq $who->{path} && $k->{section} eq $who->{section}
 	}
 	sub scan {
 		my ($self, $who) = @_;
 		my $i = 0;
-		for my $k (@{$self->{HRAN}}) {
-			return $i if _compare($k, $who);
+		for(@{$self->{HRAN}}) {
+			return $i if _compare($_, $who);
 			$i++;
 		}
 		return undef;
@@ -297,6 +298,7 @@ sub select_by {
 	my $select = $self->main->jinnee->sin($section) . "_select";
 	my $idx = $self->$section->scan($who);
 	$self->$section->select_element($idx) if defined $idx;
+	die "Нет такого элемента $who->{section}($who->{name}) / $who->{path}" if !defined $idx and !defined $self->$section->scan_all($who);
 	$self->$select($who, $cb);
 }
 
@@ -304,27 +306,40 @@ sub select_by {
 sub select {
 	my ($self, $who) = @_;
 	
-	if($who->{category}) {
-		$self->select_by($who->{category}{class}{package}, sub {
-			$self->select_by($who->{category}{class});
-			$self->select_by($who->{category});
+	eval {
+	
+		if($who->{category}) {
+			$self->select_by($who->{category}{class}{package}, sub {
+				eval {
+					$self->select_by($who->{category}{class});
+					$self->select_by($who->{category});
+					$self->select_by($who);
+				};
+				warn $@ if $@;
+			});
+		}
+		elsif($who->{class}) {
+			$self->select_by($who->{class}{package}, sub {
+				eval {
+					$self->select_by($who->{class});
+					$self->select_by($who);
+				};
+				warn $@ if $@;
+			});
+		}
+		elsif($who->{package}) {
+			$self->select_by($who->{package}, sub {
+				eval {
+					$self->select_by($who);
+				};
+				warn $@ if $@;
+			});
+		}
+		else {
 			$self->select_by($who);
-		});
-	}
-	elsif($who->{class}) {
-		$self->select_by($who->{class}{package}, sub {
-			$self->select_by($who->{class});
-			$self->select_by($who);
-		});
-	}
-	elsif($who->{package}) {
-		$self->select_by($who->{package}, sub {
-			$self->select_by($who);
-		});
-	}
-	else {
-		$self->select_by($who);
-	}
+		}
+	};
+	warn $@ if $@;
 }
 
 # событие инициализации пакетов

@@ -1,0 +1,22 @@
+sub perl
+
+expression literal " " with extrapolate
+	keyword \\"
+	keyword [^"]
+
+expression literal ' '
+	keyword \\\\
+	keyword \\'
+	keyword [^']
+
+
+expression literal qw(?<open_close>.) \k<open_close>
+	keyword \\\\
+	keyword \\\k<open_close>
+	keyword 
+
+
+sub extrapolate
+	
+keyword escape \[nrv]
+keyword 

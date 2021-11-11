@@ -106,13 +106,19 @@ sub category_list {
 sub method_list {
 	my ($self, $category) = @_;
 	
-	local $_ = $self->file_read($category->{path});
+	my $file = $self->file_read($category->{path});
 	
-	($_) = /^#\@category[ \t]+\Q$category->{name}\E[ \t]*$(.*?)(^#category\b|\z)/ms or do {
-		warn "Категория $category->{name} в $category->{path} отсутствует";
-		return;
-	};
-	
+	my @cat; my $idx;
+	while($file =~ /^#\@category[ \t]+(.*?)[ \t]*$/gm) {
+		$idx = @cat if $1 eq $category->{name};
+		push @cat, {pos => length($`), len => length($&), name => $1};
+	}
+
+	warn("Нет категории `$category->{name}`"), return if !defined $idx;
+
+	my $from = $cat[$idx]{pos} + $cat[$idx]{len};
+	local $_ = substr $file, $from, ($idx+1 < @cat? $cat[$idx+1]{pos}: length $file) - $from;
+
 	my @methods;
 	while(/^sub[ \t]+([\w:]+)/gm) {
 		push @methods, { section => "methods", category => $category, name => $1 };
@@ -149,9 +155,9 @@ bless {
 # Возвращает номер строки и тело метода
 sub method_get {
 	my ($self, $method) = @_;
-	my $file = $self->file_read($method->{path}); "sub $method->{name} {\n\tmy (\$self) = \@_;\n\n\t\$self\n}\n";
+	my $file = $self->file_read($method->{category}{path}); "sub $method->{name} {\n\tmy (\$self) = \@_;\n\n\t\$self\n}\n";
 	
-	my ($before, $body) = $file =~ /\A(.*^)(sub\s+\Q$method->{name}\E.*^\})/ms;
+	my ($before, $body) = $file =~ /\A(.*^)(sub\s+$method->{name}.*?^\})/ms;
 	
 	my $line = 1;
 	$line++ while $before =~ /\n/g;
@@ -192,14 +198,6 @@ sub tags {
 	}
 }
 
-#-relief => 'raised',
-# -font => [
-	    # -family => 'courier', 
-	    # -size => 12, 
-	    # -weight => 'bold', 
-	    # -slant => 'italic'
-    # ],
-
 sub color {
 	my ($self, $text) = @_;
 
@@ -207,32 +205,58 @@ sub color {
 	my $ret = [];
 
 	my $re_op = '[-+*/^%$?!<>=.:,;|&\\#]';
+	my $re_num = '\d[\d_]*';
 
-	my $re = qr{
-		(?<remark> ([\ \t]|^) \# .* ) |
+	
+	while($text =~ m{
+		(?<remark> \# .* ) |
 		
-		(?<number> [+-]?\d+(\.\d+)? ) |
-		(?<string> "(\\"|.)*" | '(\\'|.)*' ) |
+		(?<number> [+-]? ( $re_num (\. $re_num)? | \. $re_num ) (E [+-]? $re_num)? ) |
+		(?<number> 0x ( [\da-f] | [\d_a-f]+ ) \b )
 		
-		(?<class> \b [A-Z]\w+ \b) |
-		(?<variable> \b [a-zA-Z] \b) |
+		(?<qq> "(\\\\|\\"|[^"])*" ) |
+		(?<q> '(\\\\|\\'|[^'])*' ) |
+
+		(?<scalar> \$\#?\w+) |
+		(?<array> \@\w+) |
+		(?<hash> \%\w+) |
 		
-		(?<method> \b [a-z]\w+ \b) |
 		
-		(?<logic_operator> \b (not|and|or) \b ) |
-		(?<compare_operator> [<>=]$re_op* ) |
-		(?<operator> $re_op+ ) |
+		(?<operator> 
+			~~
+			| \|\|
 		
-		(?<staple> [()] ) |
-		(?<bracket> [\[\]] ) |
-		(?<brace> [{}] ) |
+			| ->
+			| \+\+ | --
+			| \*\*
+			| ! | ~\.? | \\ | \+ | \-
+			| =~ | !~
+			| \* | / | % | \b x \b
+			| << | >>
+			| \b isa \b
+			| <=> | <=? | >=? | \b ( lt | gt | le | ge | eq  | ne | cmp | not | and | or | xor ) \b
+			| = | !
+			| &\.?
+			| \|\.? ^\.?
+			| &&
+			| //
+			| ..?.?
+			| \? | \:
+			| \b (goto | last | next | redo | dump) \b
+			| , | =>
+		) =? |
 		
-		(?<punct> [|,;] ) |
+		(?<option> -\w+ \b) |
 		
-		(?<newline> \n ) |
+		(?<keyword> 
+		) |
+		
+		(?<method> \b [a-z]\w+ \b ) |
+		
+		(?<sk> [()\[\]\{\}] ) |
+		
 		(?<space> \s+ )
-	}xmn;
-	while($text =~ /()$re/go) {
+	}xgi) {
 		my $point = length $`;
 		if($point - $prev != 0) {
 			push @$ret, [substr($`, $prev, $point), "error"];

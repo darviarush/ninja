@@ -1,10 +1,18 @@
 # NAME
 
-ninja - редактор (IDE) в стиле Smalltalk, но для разных языков программирования.
+ninja - редактор (IDE) в стиле Smalltalk, но для разных языков программирования
 
 # VERSION
 
 0.0.0-prealpha
+
+# SYNOPSIS
+
+
+
+# DESCRIPTION
+
+
 
 # DEPENDENS
 

@@ -562,10 +562,10 @@ sub color_ref {
 	my $offset = 0;
 	[ map { 
 		my $r = {
-			line=>$line,
-			char=>$char,
-			lex=>$_->[0],
-			tag=>$_->[1], 
+			line => $line,
+			char => $char,
+			lex => $_->[0],
+			tag => $_->[1], 
 			offset => $offset,
 			limit => $offset + length($_->[0]),
 		}; 
