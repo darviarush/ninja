@@ -1,18 +1,36 @@
-sub perl
+sub main
 
-expression literal " " with extrapolate
-	keyword \\"
-	keyword [^"]
+reg remark		\#.*
 
-expression literal ' '
-	keyword \\\\
-	keyword \\'
-	keyword [^']
+regvar re_num	\d[\d_]*
+reg number 	0x ( [\da-f] | [\d_a-f]+ ) \b )
+reg number  [+-]? ( $re_num (\. $re_num)? | \. $re_num ) (E [+-]? $re_num)? )
+
+reg scalar 	\$\#\w+
+reg array 	\@\w+
+reg hash	%\w+
+
+reg scalar 	\$(?=>\{)
+reg array 	\@(?=>\{)
+reg hash 	 %(?=>\{)
 
 
-expression literal qw(?<open_close>.) \k<open_close>
-	keyword \\\\
-	keyword \\\k<open_close>
+context literal " " with extrapolate
+	keyword \\
+	keyword \"
+	reg [^"]
+
+context literal ' '
+	keyword \\
+	keyword \'
+	reg 	[^']
+
+context  qw{}
+
+
+context literal qw(?<open_close>.) \k<open_close>
+	keyword \
+	regexp 	\\\k<open_close>
 	keyword 
 
 
@@ -20,3 +38,81 @@ sub extrapolate
 	
 keyword escape \[nrv]
 keyword 
+
+
+
+
+sub color {
+	my ($self, $text) = @_;
+
+	my $prev = 0;
+	my $ret = [];
+
+	my $re_op = '[-+*/^%$?!<>=.:,;|&\\#]';
+	my $re_num = '\d[\d_]*';
+
+	
+	while($text =~ m{
+		(?<remark> \# .* ) |
+		
+		(?<number> [+-]? ( $re_num (\. $re_num)? | \. $re_num ) (E [+-]? $re_num)? ) |
+		(?<number> 0x ( [\da-f] | [\d_a-f]+ ) \b )
+		
+		(?<qq> "(\\\\|\\"|[^"])*" ) |
+		(?<q> '(\\\\|\\'|[^'])*' ) |
+
+		(?<scalar> \$\#?\w+) |
+		(?<array> \@\w+) |
+		(?<hash> \%\w+) |
+		
+		(?<option> -\w+ \b) |
+		
+		(?<operator> 
+			~~
+			| \|\|
+		
+			| ->
+			| \+\+ | --
+			| \*\*
+			| ! | ~\.? | \\ | \+ | \-
+			| =~ | !~
+			| \* | / | % | \b x \b
+			| << | >>
+			| \b isa \b
+			| <=> | <=? | >=? | \b ( lt | gt | le | ge | eq  | ne | cmp | not | and | or | xor ) \b
+			| = | !
+			| &\.?
+			| \|\.? ^\.?
+			| &&
+			| //
+			| ..?.?
+			| \? | \:
+			| , | =>
+		) =? |
+		
+		\b (?<keyword> continue | foreach | require | package | scalar | format | unless | local | until | while | elsif | next | last | goto | else | redo | sub | for | use | no | if | my ) \b |
+		
+		\b (?<func> getprotobynumber | getprotobyname | getservbyname | gethostbyaddr | gethostbyname | getservbyport | getnetbyaddr | getnetbyname | getsockname | getpeername | setpriority | getprotoent | setprotoent | getpriority | endprotoent | getservent | setservent | endservent | sethostent | socketpair | getsockopt | gethostent | endhostent | setsockopt | setnetent | quotemeta | localtime | prototype | getnetent | endnetent | rewinddir | wantarray | getpwuid | closedir | getlogin | readlink | endgrent | getgrgid | getgrnam | shmwrite | shutdown | readline | endpwent | setgrent | readpipe | formline | truncate | dbmclose | syswrite | setpwent | getpwnam | getgrent | getpwent | ucfirst | sysread | setpgrp | shmread | sysseek | sysopen | telldir | defined | opendir | connect | lcfirst | getppid | binmode | syscall | sprintf | getpgrp | readdir | seekdir | waitpid | reverse | unshift | symlink | dbmopen | semget | msgrcv | rename | listen | chroot | msgsnd | shmctl | accept | unpack | exists | fileno | shmget | system | unlink | printf | gmtime | msgctl | semctl | values | rindex | substr | splice | length | msgget | select | socket | return | caller | delete | alarm | ioctl | index | undef | lstat | times | srand | chown | fcntl | close | write | umask | rmdir | study | sleep | chomp | untie | print | utime | mkdir | atan2 | split | crypt | flock | chmod | BEGIN | bless | chdir | semop | shift | reset | link | stat | chop | grep | fork | dump | join | open | tell | pipe | exit | glob | warn | each | bind | sort | pack | eval | push | keys | getc | kill | seek | sqrt | send | wait | rand | tied | read | time | exec | recv | eof | chr | int | ord | exp | pos | pop | sin | log | abs | oct | hex | tie | cos | vec | END | ref | map | die | \-C | \-b | \-S | \-u | \-t | \-p | \-l | \-d | \-f | \-g | \-s | \-z | uc | \-k | \-e | \-O | \-T | \-B | \-M | do | \-A | \-X | \-W | \-c | \-R | \-o | \-x | lc | \-w | \-r ) \b |
+		
+		(?<method> \b [a-z]\w+ \b ) |
+		
+		(?<sk> [()\[\]\{\}] ) |
+		
+		(?<space> \s+ )
+	}xgi) {
+		my $point = length $`;
+		if($point - $prev != 0) {
+			push @$ret, [substr($`, $prev, $point), "error"];
+		}
+		$prev = $point + length $&;
+		
+		my ($tag, $lexem) = each %+;
+		push @$ret, [$lexem, $tag];
+	}
+	
+	if($prev != length $text) {
+		push @$ret, [substr($text, $prev), "error"];
+	}	
+	
+	$ret
+}
