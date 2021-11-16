@@ -173,104 +173,62 @@ sub tags {
 	my ($self) = @_;
 	
 	+{
-		number => [-foreground => '#8A2BE2'],
-		string => [-foreground => '#008B8B'],
+		Alert        => [-foregraund => "#0000ff"],
+		BaseN        => [-foregraund => "#007f00"],
+		BString      => [-foregraund => "#c9a7ff"],
+		Char         => [-foregraund => "#ff00ff"],
+		Comment      => [-foregraund => "#7f7f7f"],
+		DataType     => [-foregraund => "#0000ff"],
+		DecVal       => [-foregraund => "#00007f"],
+		Error        => [-background => '#FF0000'],
+		Float        => [-foregraund => "#00007f"],
+		Function     => [-foregraund => "#007f00"],
+		IString      => [-foregraund => "#ff0000"],
+		Keyword      => [-foregraund => "#4169E1"],
+		Normal       => [],
+		Operator     => [-foregraund => "#ffa500"],
+		Others       => [-foregraund => "#b03060"],
+		RegionMarker => [-foregraund => "#96b9ff"],
+		Reserved     => [-foregraund => "#9b30ff"],
+		String       => [-foregraund => "#ff0000"],
+		Variable     => [-foregraund => "#0000ff"],
+		Warning      => [-foregraund => "#0000ff"],
 		
-		variable => [-foreground => '#C71585'],
-		class => [-foreground => '#C71585'],
-		method => [-foreground => '#4169E1'],
-		unary => [-foreground => '#BC8F8F'],
 		
-		operator => [-foreground => '#8B0000'],
-		prefix => [-foreground => '#008080'],
-		postfix => [-foreground => '#1E90FF'],
-		compare_operator => [-foreground => '#DC143C'],
-		logic_operator => [-foreground => '#C71585'],
+		# number => [-foreground => '#8A2BE2'],
+		# string => [-foreground => '#008B8B'],
 		
-		staple => [-foreground => '#4682B4'],
-		bracket => [-foreground => '#5F9EA0'],
-		brace => [-foreground => '#00008B'],
+		# variable => [-foreground => '#C71585'],
+		# class => [-foreground => '#C71585'],
+		# method => [-foreground => '#4169E1'],
+		# unary => [-foreground => '#BC8F8F'],
 		
-		punct => [-foreground => '#00008B'],
-		remark => [-foreground => '#696969', -relief => 'raised'],
+		# operator => [-foreground => '#8B0000'],
+		# prefix => [-foreground => '#008080'],
+		# postfix => [-foreground => '#1E90FF'],
+		# compare_operator => [-foreground => '#DC143C'],
+		# logic_operator => [-foreground => '#C71585'],
 		
-		error => [-background => '#FF0000'],
+		# staple => [-foreground => '#4682B4'],
+		# bracket => [-foreground => '#5F9EA0'],
+		# brace => [-foreground => '#00008B'],
+		
+		# punct => [-foreground => '#00008B'],
+		# remark => [-foreground => '#696969', -relief => 'raised'],
+		
+		# error => [-background => '#FF0000'],
 	}
 }
 
 sub color {
-	my ($self, $text) = @_;
+	my ($self, $text, $who) = @_;
 
-	my $prev = 0;
-	my $ret = [];
-
-	my $re_op = '[-+*/^%$?!<>=.:,;|&\\#]';
-	my $re_num = '\d[\d_]*';
-
+	use Ninja::Ext::Color;
+	my $color = Ninja::Ext::Color->new;
 	
-	while($text =~ m{
-		(?<remark> \# .* ) |
-		
-		(?<number> [+-]? ( $re_num (\. $re_num)? | \. $re_num ) (E [+-]? $re_num)? ) |
-		(?<number> 0x ( [\da-f] | [\d_a-f]+ ) \b )
-		
-		(?<qq> "(\\\\|\\"|[^"])*" ) |
-		(?<q> '(\\\\|\\'|[^'])*' ) |
+	my $lang = $color->by($who->{path} // $who->{category}{path});
 
-		(?<scalar> \$\#?\w+) |
-		(?<array> \@\w+) |
-		(?<hash> \%\w+) |
-		
-		(?<option> -\w+ \b) |
-		
-		(?<operator> 
-			~~
-			| \|\|
-		
-			| ->
-			| \+\+ | --
-			| \*\*
-			| ! | ~\.? | \\ | \+ | \-
-			| =~ | !~
-			| \* | / | % | \b x \b
-			| << | >>
-			| \b isa \b
-			| <=> | <=? | >=? | \b ( lt | gt | le | ge | eq  | ne | cmp | not | and | or | xor ) \b
-			| = | !
-			| &\.?
-			| \|\.? ^\.?
-			| &&
-			| //
-			| ..?.?
-			| \? | \:
-			| , | =>
-		) =? |
-		
-		\b (?<keyword> continue | foreach | require | package | scalar | format | unless | local | until | while | elsif | next | last | goto | else | redo | sub | for | use | no | if | my ) \b |
-		
-		\b (?<func> getprotobynumber | getprotobyname | getservbyname | gethostbyaddr | gethostbyname | getservbyport | getnetbyaddr | getnetbyname | getsockname | getpeername | setpriority | getprotoent | setprotoent | getpriority | endprotoent | getservent | setservent | endservent | sethostent | socketpair | getsockopt | gethostent | endhostent | setsockopt | setnetent | quotemeta | localtime | prototype | getnetent | endnetent | rewinddir | wantarray | getpwuid | closedir | getlogin | readlink | endgrent | getgrgid | getgrnam | shmwrite | shutdown | readline | endpwent | setgrent | readpipe | formline | truncate | dbmclose | syswrite | setpwent | getpwnam | getgrent | getpwent | ucfirst | sysread | setpgrp | shmread | sysseek | sysopen | telldir | defined | opendir | connect | lcfirst | getppid | binmode | syscall | sprintf | getpgrp | readdir | seekdir | waitpid | reverse | unshift | symlink | dbmopen | semget | msgrcv | rename | listen | chroot | msgsnd | shmctl | accept | unpack | exists | fileno | shmget | system | unlink | printf | gmtime | msgctl | semctl | values | rindex | substr | splice | length | msgget | select | socket | return | caller | delete | alarm | ioctl | index | undef | lstat | times | srand | chown | fcntl | close | write | umask | rmdir | study | sleep | chomp | untie | print | utime | mkdir | atan2 | split | crypt | flock | chmod | BEGIN | bless | chdir | semop | shift | reset | link | stat | chop | grep | fork | dump | join | open | tell | pipe | exit | glob | warn | each | bind | sort | pack | eval | push | keys | getc | kill | seek | sqrt | send | wait | rand | tied | read | time | exec | recv | eof | chr | int | ord | exp | pos | pop | sin | log | abs | oct | hex | tie | cos | vec | END | ref | map | die | \-C | \-b | \-S | \-u | \-t | \-p | \-l | \-d | \-f | \-g | \-s | \-z | uc | \-k | \-e | \-O | \-T | \-B | \-M | do | \-A | \-X | \-W | \-c | \-R | \-o | \-x | lc | \-w | \-r ) \b |
-		
-		(?<method> \b [a-z]\w+ \b ) |
-		
-		(?<sk> [()\[\]\{\}] ) |
-		
-		(?<space> \s+ )
-	}xgi) {
-		my $point = length $`;
-		if($point - $prev != 0) {
-			push @$ret, [substr($`, $prev, $point), "error"];
-		}
-		$prev = $point + length $&;
-		
-		my ($tag, $lexem) = each %+;
-		push @$ret, [$lexem, $tag];
-	}
-	
-	if($prev != length $text) {
-		push @$ret, [substr($text, $prev), "error"];
-	}	
-	
-	$ret
+	$color->color($lang => $text);
 }
 
 1;
