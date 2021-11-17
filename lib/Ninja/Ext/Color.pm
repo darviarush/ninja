@@ -66,8 +66,6 @@ sub color {
 	
 	my @res = $syntax->highlight($text);
 	
-	::msg "color", $text, \@res;
-	
 	my $out = [];
 	while(@res) {
 		my $x = shift @res;

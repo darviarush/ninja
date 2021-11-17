@@ -1,14 +1,14 @@
 sub main
 
-	reg remark		\#.*
+reg remark		\#.*
 
-	regvar re_num	\d[\d_]*
-	reg number 	0x ( [\da-f] | [\d_a-f]+ ) \b )
-	reg number  [+-]? ( $re_num (\. $re_num)? | \. $re_num ) (E [+-]? $re_num)? )
+regvar re_num	\d[\d_]*
+reg number 	0x ( [\da-f] | [\d_a-f]+ ) \b )
+reg number  [+-]? ( $re_num (\. $re_num)? | \. $re_num ) (E [+-]? $re_num)? )
 
-	reg scalar 	\$\#\w+
-	reg array 	\@\w+
-	reg hash	%\w+
+reg scalar 	\$\#\w+
+reg array 	\@\w+
+reg hash	%\w+
 
 reg scalar 	\$(?=>\{)
 reg array 	\@(?=>\{)
