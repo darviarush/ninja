@@ -87,7 +87,7 @@ sub disabled { my ($self) = @_; $self->i->Eval(".t.text cget -state") eq "disabl
 sub set {
 	my ($self, $text) = @_;
 	
-	my $lex = $self->main->jinnee->color($text);
+	my $lex = $self->main->jinnee->color($self->{who}, $text);
 	
 	my $pos = $self->i->Eval(".t.text index insert");
 	$self->i->Eval(".t.text delete 1.0 end");

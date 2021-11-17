@@ -740,7 +740,7 @@ sub find_line_show {
 	# TODO: движение построчно курсором
 
 	my ($linestart, $text) = $jinnee->get($res->{who});
-	$i->invoke(qw/.s.t.text insert end/, @$_) for @{$jinnee->color($text)};
+	$i->invoke(qw/.s.t.text insert end/, @$_) for @{$jinnee->color($res->{who}, $text)};
 	
 	my ($from, $to) = @{$res->{select_in_text}};
 	$i->Eval("

@@ -1,3 +1,4 @@
+requires "Syntax::Highlight::Engine::Kate";
 
 requires "Tcl";
 requires "Time::HiRes";

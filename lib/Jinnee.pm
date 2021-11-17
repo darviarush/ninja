@@ -241,109 +241,6 @@ sub method_restore {
 	$self->to_trash("methods", $method->{path});
 }
 
-#@category Поиск и замена
-
-# устанавливает параметры поиска
-sub find_set {
-	my ($self, $re, $where) = @_;
-	$self->{find_param} = {
-		re => $re,
-		S => [$where // $self->package_list],
-		result => [],
-	};
-	$self
-}
-
-# осуществляет поиск до первого срабатывания или пока не выйдет время
-sub find {
-	my ($self) = @_;
-	
-	my $A = $self->{find_param};
-	my $S = $A->{S};
-	
-	my $time = Time::HiRes::time() + $A->{after} // 0.01;
-	
-	while(@$S) {
-		my $who = pop @$S;
-		
-		my ($line_start, $text) = ();
-		
-		if($who->{section} eq "packages") {
-			push @$S, $self->class_list($who);
-		}
-		elsif($who->{section} eq "classes") {
-			push @$S, $self->category_list($who);
-			($line_start, $text) = $self->class_get($who);
-		}
-		elsif($who->{section} eq "categories") {
-			push @$S, $self->method_list($who);
-		}
-		else {
-			($line_start, $text) = $self->method_get($who);
-		}
-		
-		if(defined $text) {
-			my $re = $A->{re};
-			my @R;
-			my $lex;
-			my $i;
-			my $where;
-
-			while($text =~ /()$re/g) {
-				my $offset = length $`;
-				my $limit = $offset + length $&;
-				$lex //= $self->color_ref($text);
-
-				# на какую лексему приходится начало выделения
-				$i++ while $i<$#$lex && $lex->[$i+1]{offset} <= $offset;
-				# и конец:
-				my $j = $i;
-				$j++ while $j<@$lex && $lex->[$j]{limit} < $limit;
-				
-				my $line1 = $lex->[$i]{line};
-				my $char1 = $lex->[$i]{char};
-				my $line2 = $lex->[$j]{line_end};
-				my $char2 = $lex->[$j]{char_end};
-				
-				# выбираем все лексемы находящиеся на строке начала выделения
-				my $n = $lex->[$i]{line};
-				my $k = $i; my $m = $i;
-				$k-- while $k>0 && $lex->[$k-1]{line} == $n;
-				$m++ while $m<$#$lex && $lex->[$m+1]{line} == $n;
-				
-				$m-- if $lex->[$m]{lex} eq "\n";
-				
-				my $line = [map { my $t=$lex->[$_]{tag}; [$lex->[$_]{lex}, $t eq "space"? (): $t] } $k..$m];
-				
-				my $file = $who->{section} eq "methods"? 
-					[[$who->{category}{class}{name}, 'class'], [" "], [$who->{name}, "method"]]:
-					[[$who->{name}, "class"]];
-				push @$file, [" "], [$line_start + $n - 1, "number"];
-
-				unshift(@$line, ["\n"]), unshift @$file, ["\n"] if @{$A->{result}} + @R > 0;
-				
-				push @R, {
-					select => [$offset - $lex->[$k]{offset},
-								$lex->[$m]{limit} < $limit? $lex->[$m]{limit}: 
-									$limit - $lex->[$k]{offset}],
-					select_in_text => ["$line1.$char1", "$line2.$char2"],
-					line => $line,
-					file => $file,
-					who => $who,
-				};				
-				
-				$i = $j;
-			}
-			
-			push(@{$A->{result}}, @R), return \@R if @R;
-		}
-		
-		return @$S? []: 0 if $time < Time::HiRes::time();
-	}
-	
-	0
-}
-
 #@category Синтаксис
 
 sub tags {
@@ -386,8 +283,8 @@ sub tags {
 	    # -slant => 'italic'
     # ],
 
-sub lex {
-	my ($self, $text) = @_;
+sub color {
+	my ($self, $who, $text) = @_;
 	
 	my $prev = 0;
 	my $ret = [];
@@ -542,45 +439,17 @@ sub lex {
 	return $ret;
 }
 
-sub color {
-	my ($self, $text) = @_;
+# sub color {
+	# my ($self, $text, $who) = @_;
 
-	my $ret = $self->lex($text);
+	# my $ret = $self->lex($text);
 	
-	for my $x ( @$ret ) {
-		@$x = $x->[0] if $x->[1] =~ /^(newline|space)$/n;
-	}
+	# for my $x ( @$ret ) {
+		# @$x = $x->[0] if $x->[1] =~ /^(newline|space)$/n;
+	# }
 	
-	$ret
-}
-
-sub color_ref {
-	my ($self, $text) = @_;
-
-	my $line = 1;
-	my $char = 0;
-	my $offset = 0;
-	[ map { 
-		my $r = {
-			line => $line,
-			char => $char,
-			lex => $_->[0],
-			tag => $_->[1], 
-			offset => $offset,
-			limit => $offset + length($_->[0]),
-		}; 
-		
-		$offset += length $_->[0];
-		$char += length $_->[0];
-		$char = 0, $line++ while $_->[0] =~ /\n/g;
-		
-		$r->{line_end} = $line;
-		$r->{char_end} = $char;
-		
-		$r 
-	} @{$self->lex($text)} ];
-}
-
+	# $ret
+# }
 
 #@category Компиляция
 

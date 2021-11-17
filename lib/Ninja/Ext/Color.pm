@@ -46,7 +46,7 @@ sub load {
 	my ($self, $lang) = @_;
 	my $path = $self->plugin($lang);
 	$path =~ s!::!/!g;
-	require $path;
+	require "$path.pm";
 	$lang
 }
 
@@ -64,12 +64,14 @@ sub color {
 	my $syntax = $self->syntax($lang);
 	
 	
-	my $res = $syntax->highlight($text);
+	my @res = $syntax->highlight($text);
+	
+	::msg "color", $text, \@res;
 	
 	my $out = [];
-	while(@$res) {
-		my $f = pop @$res;
-		my $x = pop @$res;
+	while(@res) {
+		my $x = shift @res;
+		my $f = shift @res;
 		push @$out, [$x, $f];
 	}
 	

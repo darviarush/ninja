@@ -72,7 +72,7 @@ sub class_list {
 	
 	map { my $path = $_; my ($supername) = m!([^/]*)$!;
 		-f $path? +{ path => $path, name => do { $supername =~ s!\.pm$!!; $supername } }:
-		map { +{ 
+		map { +{
 			section => "classes",
 			package => $package,
 			path => $_,
@@ -81,7 +81,7 @@ sub class_list {
 				$name =~ s!\.[^\./]*$!!;
 				$name =~ s!/!::!g;
 				"${supername}::$name"
-		} } } grep { -f $_ } $self->find($path)
+		} } } $self->lstree_files($path)
 	}
 	$package->{path}
 }
@@ -167,32 +167,34 @@ sub method_get {
 
 #@category Писатели
 
+
+
 #@category Синтаксис
 
 sub tags {
 	my ($self) = @_;
 	
 	+{
-		Alert        => [-foregraund => "#0000ff"],
-		BaseN        => [-foregraund => "#007f00"],
-		BString      => [-foregraund => "#c9a7ff"],
-		Char         => [-foregraund => "#ff00ff"],
-		Comment      => [-foregraund => "#7f7f7f"],
-		DataType     => [-foregraund => "#0000ff"],
-		DecVal       => [-foregraund => "#00007f"],
+		Alert        => [-foreground => "#0000ff"],
+		BaseN        => [-foreground => "#8A2BE2"],
+		BString      => [-foreground => "#008B8B"],
+		Char         => [-foreground => "#4682B4"],
+		Comment      => [-foreground => '#696969', -relief => 'raised'],
+		DataType     => [-foreground => "#C71585"],
+		DecVal       => [-foreground => "#BC8F8F"],
 		Error        => [-background => '#FF0000'],
-		Float        => [-foregraund => "#00007f"],
-		Function     => [-foregraund => "#007f00"],
-		IString      => [-foregraund => "#ff0000"],
-		Keyword      => [-foregraund => "#4169E1"],
+		Float        => [-foreground => "#ff1493"],
+		Function     => [-foreground => "#4169E1"],
+		IString      => [-foreground => "#00008B"],
+		Keyword      => [-foreground => "#1E90FF"],
 		Normal       => [],
-		Operator     => [-foregraund => "#ffa500"],
-		Others       => [-foregraund => "#b03060"],
-		RegionMarker => [-foregraund => "#96b9ff"],
-		Reserved     => [-foregraund => "#9b30ff"],
-		String       => [-foregraund => "#ff0000"],
-		Variable     => [-foregraund => "#0000ff"],
-		Warning      => [-foregraund => "#0000ff"],
+		Operator     => [-foreground => "#ffa500"],
+		Others       => [-foreground => "#b03060"],
+		RegionMarker => [-foreground => "#96b9ff"],
+		Reserved     => [-foreground => "#9b30ff"],
+		String       => [-foreground => "#5F9EA0"],
+		Variable     => [-foreground => "#DC143C"],
+		Warning      => [-foreground => "#0000ff"],
 		
 		
 		# number => [-foreground => '#8A2BE2'],
@@ -221,7 +223,7 @@ sub tags {
 }
 
 sub color {
-	my ($self, $text, $who) = @_;
+	my ($self, $who, $text) = @_;
 
 	use Ninja::Ext::Color;
 	my $color = Ninja::Ext::Color->new;
