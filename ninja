@@ -15,7 +15,7 @@ my $cf = -e "./.ninjarc"? require("./.ninjarc"): {
 	pl => ["Ninja::Jinnee::Perl",
 		INC => ["lib"],
 	],
-	default => 'jn',
+	default => 'pl',
 };
 
 

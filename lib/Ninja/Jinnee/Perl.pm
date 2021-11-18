@@ -163,8 +163,6 @@ sub class_get {
 sub method_get {
 	my ($self, $method) = @_;
 	
-	::msg "method_get", $method;
-	
 	my $file = $self->file_read($method->{category}{path}); 
 	#"sub $method->{name} {\n\tmy (\$self) = \@_;\n\n\t\$self\n}\n";
 	
