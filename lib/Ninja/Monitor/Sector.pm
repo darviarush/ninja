@@ -1,9 +1,11 @@
-package Ninja::Jinnee::Perl;
-# Плагин суперредактора Ninja
+package Ninja::Monitor::Sector;
+# Драйвер секционального редактора Ninja для наблюдения за участками файловой системы
 
 use common::sense;
 
-use parent "Ninja::Role::Jinnee";
+use parent "Ninja::Role::Monitor";
+
+use Ninja::Ext::File;
 
 
 sub new {
@@ -16,38 +18,29 @@ sub new {
 
 #@category Списки
 
-# возвращает множество в INC - список пакетов и список модулей в пакете [-]
-sub package_list_info {
+# Обходит указанную фс и создаёт списки пакетов и классов
+sub monitor {
 	my ($self) = @_;
-
-	my @files;
+	
+	my %classes;	# пакет -> класс
 	my @packages;
-	my %package;
-	my @nouname;
 	
+	my %dir; my @files;
 	for my $inc (@{$self->{INC}}) {
-		for($self->ls($inc)) {
-			my $name = substr $_, 1+length $inc;
-			my $package = +{ section => "packages", inc => $inc, path => $_, name => $name };
-			if(-d $_) {
-				push @packages, $package;
-				$package{$name} = 1;
-			} else {
-				$package->{name} =~ s!\.pm$!!;
-				push @files, $package;
-			}
-		}
+		my $incf = Ninja::Ext::File->new($inc);
+		my ($dirs, $files) = $incf->lstree;
+		$dir{$_} =  for @$dirs;
+		push @files, @$files;
 	}
 
-	# Модули, что не имеют своих каталогов будут входить в пакет [-]
-	for(@files) {
-		if(exists $package{$_->{name}}) { push @packages, $_; }
-		else { push @nouname, $_; }
+	for my $file (@$files) {
+		$file->name . $file->ext;
 	}
+
 	
-	return +{
-		packages => [@nouname? {section => "packages", name => "[-]", nouname => 1}: (), sort { $a->{name} cmp $b->{name} } @packages],
-		nouname => [sort { $a->{name} cmp $b->{name} } @nouname],
+	return {
+		packages => \@packages,
+		classes => \%classes,
 	}
 }
 

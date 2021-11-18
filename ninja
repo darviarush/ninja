@@ -12,7 +12,7 @@ my $cf = -e "./.ninjarc"? require("./.ninjarc"): {
 	jn => ["Jinnee",
 		INC => ["src"],
 	],
-	pl => ["Ninja::Jinnee::Perl",
+	pl => ["Ninja::Monitor::Titan",
 		INC => ["lib"],
 	],
 	default => 'pl',
