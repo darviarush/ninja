@@ -37,7 +37,6 @@ sub monitor {
 		$file->name . $file->ext;
 	}
 
-	
 	return {
 		packages => \@packages,
 		classes => \%classes,

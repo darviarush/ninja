@@ -12,10 +12,10 @@ my $cf = -e "./.ninjarc"? require("./.ninjarc"): {
 	jn => ["Jinnee",
 		INC => ["src"],
 	],
-	pl => ["Ninja::Monitor::Titan",
+	pl => ["Ninja::Monitor::Sector",
 		INC => ["lib"],
 	],
-	default => 'pl',
+	default => 'jn',
 };
 
 
