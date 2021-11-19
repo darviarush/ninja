@@ -30,36 +30,31 @@ sub parse {
 	
 	local $_ = $file->read;
 	
-	my %x;
-	$x{package} = {section=>"packages", name=>$file->dir // "[*]"};
-	$x{} = 
-	
 	my $end = 0;
 	my @A;
-	my $package;
-	my $class;
-	my $category;
+	my $package = {section=>"packages", name=>"*"};
+	my $class = {section=>"classes", name=>"*"};
+	my $category = {section=>"categories", name=>"*"};
 	
 	while($file =~ m{$PACKAGE|$CLASS|$CATEGORY|$METHOD|$END}gx) {
 		
-		$end = length($`) + length $&, next if exists $+{end};
-		
-		
-		my @args = (from => $end, mid => length($`), len => length($&), );
+		my $mid = length($`) + length $&;
+		my @a = (from=>$end, mid=>$mid);
+		$end = $mid;
 		
 		if(exists $+{package}) {
-			push @A, {section=>"packages", name=>$+{package}};
+			push @A, $package = {section=>"packages", name=>$+{package}, @a};
 		}
 		elsif(exists $+{class}) {
-			push @A, {section=>"classes", name=>$+{class}, package=>$package};
+			push @A, $class = {section=>"classes", name=>$+{class}, package=>$package, @a};
 		}
 		elsif(exists $+{category}) {
-			push @A, {section=>"categories", name=>$+{category}, class=>$class};
+			push @A, $category = {section=>"categories", name=>$+{category}, class=>$class, @a};
 		}
 		elsif(exists $+{method}) {
-			push @A, {section=>"methods", name=>$+{method}, category=>$category};
+			push @A, {section=>"methods", name=>$+{method}, category=>$category, @a};
 		}
-				
+
 	}
 	
 	return @A;

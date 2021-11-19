@@ -89,15 +89,18 @@ sub category_list {
 	
 	my $path = $class->{path};
 	
-	local $_ = $self->file_read($path);
+	my $jinnee = $self->jinnee($class->{path});
+	$jinnee->parse(Ninja::);
 	
-	my @cat;
-	while(/^#\@category[ \t]+(.*?)[ \t]*$/gm) {
-		push @cat, {section=>"categories", class=>$class, path=>$path, name=>$1};
-	}
-	# ∰ - три факториала в круге
-	# Qiyeshipin Shengchanxuke logo.svg
-	return {section=>"categories", class=>$class, path=>$path, name=>"§", header=>1}, @cat
+	# local $_ = $self->file_read($path);
+	
+	# my @cat;
+	# while(/^#\@category[ \t]+(.*?)[ \t]*$/gm) {
+		# push @cat, {section=>"categories", class=>$class, path=>$path, name=>$1};
+	# }
+	# # ∰ - три факториала в круге
+	# # Qiyeshipin Shengchanxuke logo.svg
+	# return {section=>"categories", class=>$class, path=>$path, name=>"§", header=>1}, @cat
 }
 
 # список методов
