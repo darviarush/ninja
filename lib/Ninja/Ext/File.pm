@@ -20,6 +20,7 @@ sub isdir { my ($self) = @_; -d $self->{path} }
 sub isfile { my ($self) = @_; -f $self->{path} }
 sub mod { my ($self) = @_; (stat $self->{path})[2] & 07777 }
 sub mtime { my ($self) = @_; (Time::HiRes::stat $self->{path})[10] }
+sub dir { my ($self) = @_; $self->{path} =~ m!/[^/]*$!? $`: undef }
 sub file { my ($self) = @_; my ($file) = $self->{path} =~ m!([^/]+)$!; $file }
 sub name { my ($self) = @_; my ($name) = $self->{path} =~ m!([^/]+)(?:\.[^/\.]*)?$!; $name }
 sub ext { my ($self) = @_; my ($ext) = $self->{path} =~ m!\.([^/\.]*)$!; $ext }
@@ -99,14 +100,27 @@ sub ls {
 	map { $self->new($_) } sort @ls;
 }
 
-# Рекурсивно возвращает файлы
+# рекурсивно возвращает каталоги
+sub lstree_dirs {
+	my ($self) = @_;
+	my @S = $self;
+	my @paths;
+	while(@S) {
+		for(pop(@S)->ls) {
+			push(@S, $_), push @paths, $_ if -d $_->{path};
+		}
+	}
+	return @paths;
+}
+
+# рекурсивно возвращает файлы
 sub lstree_files {
 	my ($self) = @_;
 	my @S = $self;
 	my @paths;
 	while(@S) {
 		for(pop(@S)->ls) {
-			if($_->isdir) { push @S, $_ } else { push @paths, $_ }
+			if(-d $_->{path}) { push @S, $_ } else { push @paths, $_ }
 		}
 	}
 	return @paths;
@@ -120,7 +134,7 @@ sub lstree {
 	my $dirs = [];
 	while(@S) {
 		for(pop(@S)->ls) {
-			if($_->isdir) {push @S, $_; push @$files, $_} else {push @$dirs, $_}
+			if(-d $_->{path}) {push @S, $_; push @$files, $_} else {push @$dirs, $_}
 		}
 	}
 	return $dirs, $files;

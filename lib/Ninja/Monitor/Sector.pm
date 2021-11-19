@@ -11,7 +11,7 @@ use Ninja::Ext::File;
 sub new {
 	my $cls = shift;
 	bless {
-		INC => ["lib"],	# @INC
+		INC => ["."],	# @INC
 		@_,
 	}, ref $cls || $cls;
 }
@@ -20,27 +20,29 @@ sub new {
 
 # Обходит указанную фс и создаёт списки пакетов и классов
 sub monitor {
-	my ($self) = @_;
+	my ($self, $sub_path) = @_;
 	
-	my %classes;	# пакет -> класс
-	my @packages;
+	my %classes;	# пакет -> [класс...]
 	
 	my %dir; my @files;
 	for my $inc (@{$self->{INC}}) {
 		my $incf = Ninja::Ext::File->new($inc);
+		
+		if ;
+		
+		
 		my ($dirs, $files) = $incf->lstree;
-		$dir{$_} =  for @$dirs;
+		$classes{$_->path} //= [] for @$dirs;
+		
 		push @files, @$files;
 	}
-
+	
 	for my $file (@$files) {
-		$file->name . $file->ext;
+		my $package = $file->dir // "[*]";
+		push @{$classes{$package}}, $file;
 	}
 
-	return {
-		packages => \@packages,
-		classes => \%classes,
-	}
+	return \%classes;
 }
 
 
@@ -48,8 +50,12 @@ sub monitor {
 # классы в корне inc либо забрасываются в одноимённые пакеты, либо попадают в пакет [-]
 sub package_list {
 	my ($self) = @_;
-	my $info = $self->package_list_info;
-	@{$info->{packages}}
+	my $info = $self->monitor;
+	my $root = delete $info->{"[*]"};
+	return $root? {root=>1, section=>"packages", name=>"[*]"}: (), map {+{
+		section => "packages",
+		name => $_,
+	}} sort keys %$info;
 }
 
 # список классов в указанном пакете
@@ -57,13 +63,12 @@ sub package_list {
 sub class_list {
 	my ($self, $package) = @_;
 	
-	return map {
-		$_->{section} = "classes";
-		$_->{package} = $package;
-	$_ } @{$self->package_list_info->{nouname}} if $package->{nouname};
+	my $classes = $self->monitor->{$package->{name}};
 	
-	map { my $path = $_; my ($supername) = m!([^/]*)$!;
-		-f $path? +{ path => $path, name => do { $supername =~ s!\.pm$!!; $supername } }:
+	for my $file (@$classes) {
+		
+	}
+	
 		map { +{
 			section => "classes",
 			package => $package,
@@ -73,7 +78,7 @@ sub class_list {
 				$name =~ s!\.[^\./]*$!!;
 				$name =~ s!/!::!g;
 				"${supername}::$name"
-		} } } $self->lstree_files($path)
+
 	}
 	$package->{path}
 }
@@ -92,7 +97,7 @@ sub category_list {
 	}
 	# ∰ - три факториала в круге
 	# Qiyeshipin Shengchanxuke logo.svg
-	return {section=>"categories", class=>$class, path=>$path, name=>"§", header => 1}, @cat
+	return {section=>"categories", class=>$class, path=>$path, name=>"§", header=>1}, @cat
 }
 
 # список методов
