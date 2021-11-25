@@ -20,6 +20,15 @@ my $METHOD = qr/\b sub \s+ (?<method>[\w:]+)/mx;
 my $END = qr/(?<end> ^ \} [\ \t]* $/mx;
 my $INC = qr/(?<inc> \{ /mx;
 my $DEC = qr/(?<dec> \} /mx;
+my $NOOP = qr{ (?<noop>
+	"( \\\\ | \\" | [^"] )*"
+	| '( \\\\ | \\' | [^'] )*'
+	| \# [^\n]*
+	| ^=[a-zA-Z] .* ^=cut \b
+	| \b __(DATA|END)__ \b .*
+	| \b (m|y|tr|qx|qr|qq|q) 
+		(?<sym> [^\w\s]) ( \\\\ | \\ \k<sym> | . )*? \k<sym>
+) }xms;
 
 my %MANY = qw/package packages class classes category categories method methods/;
 
@@ -31,12 +40,22 @@ sub parse {
 	local $_ = $file->read;
 	
 	my $end = 0;
-	my @A;
+	my @A; my @S; my $c;
 	my $package = {section=>"packages", name=>"*"};
 	my $class = {section=>"classes", name=>"*"};
 	my $category = {section=>"categories", name=>"*"};
 	
-	while($file =~ m{$PACKAGE|$CLASS|$CATEGORY|$METHOD|$END}gx) {
+	while($file =~ m{$PACKAGE|$CLASS|$CATEGORY|$METHOD|$END|$NOOP|$INC|$DEC}gx) {
+		next if exists $+{noop};
+		
+		if(exists $+{inc}) { $c++ }
+		elsif(exists $+{dec}) {
+			if($c != 0) $c--;
+			if($c == 0 && @S) {
+				my $c = pop @S;
+				
+			}
+		}
 		
 		my $mid = length($`) + length $&;
 		my @a = (from=>$end, mid=>$mid);
@@ -59,5 +78,7 @@ sub parse {
 	
 	return @A;
 }
+
+
 
 1;

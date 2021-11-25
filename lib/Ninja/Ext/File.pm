@@ -74,8 +74,8 @@ sub _ox { sprintf "\\x{%X}", ord $_[0] }
 my $SIGN_FROM = join "", map { _ox($_) } sort keys %SIGN;
 my $SIGN_TO = join "", map { _ox($SIGN{$_}) } sort keys %SIGN;
 
-my $SGN_FROM = "sub { my (\$self) = \@_; my $x = $self->{path}; \$x =~ y/$SIGN_FROM/$SIGN_TO/; \$x }";
-my $SGN_TO = "sub { my (\$self) = \@_; \$x =~ y/$SIGN_TO/$SIGN_FROM/; \$x }";
+my $SGN_FROM = "sub { my (\$self) = \@_; my \$x = \$self->{path}; \$x =~ y/$SIGN_FROM/$SIGN_TO/; \$x }";
+my $SGN_TO = "sub { my (\$self) = \@_;  my \$x = \$self->{path}; \$x =~ y/$SIGN_TO/$SIGN_FROM/; \$x }";
 
 *escape = eval $SGN_FROM;
 *unescape = eval $SGN_TO;
@@ -83,7 +83,7 @@ my $SGN_TO = "sub { my (\$self) = \@_; \$x =~ y/$SIGN_TO/$SIGN_FROM/; \$x }";
 #@category Файлы
 
 # список файлов в папке, кроме .. и .
-sub ls {
+sub lspath {
 	my ($self) = @_;
 	
 	my $path = $self->{path};
@@ -97,7 +97,22 @@ sub ls {
 	}
 	closedir $dir;
 	
-	map { $self->new($_) } sort @ls;
+    sort @ls;
+}
+
+sub ls {
+    my ($self) = @_;
+    map { $self->new($_) } $self->lspath
+}
+
+# хеши папок и файлов
+sub lsx {
+	my ($self) = @_;
+	my %dirs; my %files;
+	for my $f ($self->ls) {
+		if($f->isdir) {$dirs{$f->path} = $f} else {$files{$f->path} = $f}
+	}
+	return \%dirs, \%files;
 }
 
 # рекурсивно возвращает каталоги
@@ -217,9 +232,9 @@ sub load {
 }
 
 sub read {
-	my ($self, $path, $encode) = @_;
+	my ($self, $encode) = @_;
 	$encode //= 'utf8';
-	open my $f, "<:encoding($encode)", $path or die "Не могу открыть `$path`. Причина: $!";
+	open my $f, "<:encoding($encode)", $self->{path} or die "Не могу открыть `$self->{path}`. Причина: $!";
 	read $f, my $buf, -s $f;
 	$buf
 }

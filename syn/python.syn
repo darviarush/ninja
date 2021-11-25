@@ -1,0 +1,12 @@
+language python
+
+ext .py
+hidden .pyc
+
+cmd python
+cmd python3
+
+
+context main
+
+	reg class class [\t\ ]+ 

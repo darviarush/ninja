@@ -1,0 +1,41 @@
+language perl
+
+ext .pm .pl
+cmd perl
+
+
+context main
+	key {
+	inc
+	key }
+	dec
+
+	reg package		\#\@package \s+ (?<package> [\w:]+)
+	
+	reg class		\b package \s+ (?<class> [\w:]+ ) \s+ (?<version> v?\d+(\.\d+){0,2}) \s+ \{
+	inc
+	
+	reg class		\b package \s+ (?<class> [\w:]+ )
+	reg category	\#\@category [\ \t]+ (?<category> .*? ) [\ \t]* $
+	
+	reg method		\b sub \s+ (?<method> [\w:]+) () \s* \{
+	inc
+	
+	reg remark		\# [^\n]*
+	
+	reg quote 		(?<end> ") | \b qq (?<end> [^\s\w] )
+	jmp qqstring
+	
+	reg quote " | \b qq (?<end> [^\s\w\\] )
+	jmp qqstring
+	
+	
+	
+	
+context qstring
+	
+context qqstring
+	key quote	\\
+	reg symbol	.
+
+context regex

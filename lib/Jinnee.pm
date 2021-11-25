@@ -3,9 +3,10 @@ package Jinnee;
 
 use common::sense;
 
-use parent 'Ninja::Role::Jinnee';
+use parent 'Ninja::Role::Monitor';
 
 
+use Ninja::Ext::File;
 use Time::HiRes qw//;
 
 
@@ -25,6 +26,8 @@ sub new {
 	}, $cls;
 }
 
+sub f {Ninja::Ext::File->new(@_)}
+
 #@category Списки
 
 #!!
@@ -36,7 +39,7 @@ sub package_list {
 	my ($self) = @_;
 		
 	map { my $inc = $_;
-		map { +{ section => "packages",	inc => $inc, path => $_, name => $self->unescape(substr $_, 1+length $inc) }} $self->ls($inc)
+		map { +{ section => "packages",	inc => $inc, path => $_, name => f(substr $_, 1+length $inc)->unescape }} f($inc)->lspath
 	} @{$self->{INC}}
 }
 
@@ -45,7 +48,8 @@ sub class_list {
 	my ($self, $package) = @_;
 	
 	my $path = $package->{path};
-	map { +{ section => "classes", package => $package, path => $_, name => $self->unescape(substr $_, 1+length $path) } } $self->ls($path)
+	::msg "path", $path;
+	map { +{ section => "classes", package => $package, path => $_, name => f(substr $_, 1+length $path)->unescape } } f($path)->lspath
 }
 
 # список категорий
@@ -53,7 +57,7 @@ sub category_list {
 	my ($self, $class) = @_;
 	
 	my $path = $class->{path};
-	map { +{ section => "categories", class => $class, path => $_, name => $self->unescape(substr $_, 1+length $path) } } grep { !/\/\.\$\z/ } $self->ls($path)
+	map { +{ section => "categories", class => $class, path => $_, name => f(substr $_, 1+length $path)->unescape } } grep { !/\/\.\$\z/ } f($path)->lspath
 }
 
 # список методов. $category может быть '*'
@@ -61,7 +65,7 @@ sub method_list {
 	my ($self, $category) = @_;
 	
 	my $path = $category->{path};
-	map { +{ section => "methods", category => $category, path => $_, name => $self->unescape(substr $_, 1+length($path), -2) } } $self->ls($path)
+	map { +{ section => "methods", category => $category, path => $_, name => f(substr $_, 1+length($path), -2)->unescape } } f($path)->lspath
 }
 
 #@category Читатели
@@ -69,13 +73,13 @@ sub method_list {
 # возвращает тело класса
 sub class_get {
 	my ($self, $class) = @_;
-	return 1, $self->file_read("$class->{path}/.\$");
+	return 1, f("$class->{path}/.\$")->read;
 }
 
 # Возвращает тело метода раскрашенное разными цветами
 sub method_get {
 	my ($self, $method) = @_;
-	return 1, $self->file_read($method->{path});
+	return 1, f($method->{path})->read;
 }
 
 
@@ -84,13 +88,13 @@ sub method_get {
 # сохраняет и если нужно - переименовывает. Возвращает переименованный объект
 sub class_put {
 	my ($self, $class, $body) = @_;
-	$self->file_save("$class->{path}/.\$", $body);
+	f("$class->{path}/.\$")->write($body);
 	
 	if($body =~ /^\w+ subclass ([A-Z]\w+)/) {
 		my $name = $1;
 		my $old = my $path = $class->{path};
-		my $cname = $self->escape($class->{name});
-		my $ename = $self->escape($name);
+		my $cname = f($class->{name})->escape;
+		my $ename = f($name)->escape;
 		$path =~ s!$cname$!$ename!;
 		undef $!;
 		rename $class->{path}, $path and do {
@@ -104,13 +108,13 @@ sub class_put {
 # сохраняет и если нужно - переименовывает. Возвращает переименованный объект
 sub method_put {
 	my ($self, $method, $body) = @_;
-	$self->file_save("$method->{path}", $body);
+	f("$method->{path}")->write($body);
 	
 	if($body =~ /^\S.*/) {
 		my $name = $&;
 		my $path = $method->{path};
-		my $mname = $self->escape($method->{name});
-		my $ename = $self->escape($name);
+		my $mname = f($method->{name})->escape;
+		my $ename = f($name)->escape;
 		$path =~ s!$mname(\.\$)$!$ename$1!;
 		rename $method->{path}, $path and do {
 			$method = {%$method, name => $name, path => $path};
@@ -125,8 +129,8 @@ sub method_put {
 sub package_new {
 	my ($self, $name) = @_;
 	my $inc = $self->{INC}[$#{$self->{INC}}];
-	my $path = "$inc/" . $self->escape($name);
-	$self->mkpath("$path/");
+	my $path = "$inc/" . f($name)->escape;
+	f("$path/")->mkpath;
 	die "Невозможно создать пакет $name ($path): $!" if !-e $path;
 	return {section => 'packages', inc => $inc, name => $name, path => $path};
 }
@@ -134,7 +138,7 @@ sub package_new {
 sub package_rename {
 	my ($self, $name, $package) = @_;
 	my $was = my $path = $package->{path};
-	$path =~ s![^/]*$!$self->escape($name)!e;
+	$path =~ s![^/]*$!f($name)->escape!e;
 	rename $package->{path}, $path or die "Невозможно переименовать $package->{path} -> $path: $!";
 	return {%$package, name => $name, path => $path};
 }
@@ -142,18 +146,18 @@ sub package_rename {
 sub class_new {
 	my ($self, $name, $package, $template) = @_;
 	
-	my $class = {section => "classes", package => $package, name => $name, path => "$package->{path}/" . $self->escape($name)};
+	my $class = {section => "classes", package => $package, name => $name, path => "$package->{path}/" . f($name)->escape};
 	
 	$template //= "Nil subclass $class->{name}\n\n";
 	
-	$self->file_save("$class->{path}/.\$", $template);
+	f("$class->{path}/.\$")->write($template);
 	$class
 }
 
 sub category_new {
 	my ($self, $name, $class) = @_;
-	my $path = "$class->{path}/" . $self->escape($name);
-	$self->mkpath("$path/");
+	my $path = "$class->{path}/" . f($name)->escape;
+	f("$path/")->mkpath;
 	die "Невозможно создать категорию $name ($path): $!" if !-e $path;
 	return {section => 'categories', class => $class, name => $name, path => $path};
 }
@@ -161,16 +165,16 @@ sub category_new {
 sub category_rename {
 	my ($self, $name, $category) = @_;
 	my $path = $category->{path};
-	$path =~ s![^/]*$!$self->escape($name)!e;
+	$path =~ s![^/]*$!f($name)->escape!e;
 	rename $category->{path}, $path or die "Невозможно переименовать $category->{path} -> $path: $!";
 	return {%$category, name => $name, path => $path};
 }
 
 sub method_new {
 	my ($self, $name, $category, $template) = @_;
-	my $method = {section => 'methods', category => $category, name => $name, path => "$category->{path}/" . $self->escape($name). ".\$"};
+	my $method = {section => 'methods', category => $category, name => $name, path => "$category->{path}/" . f($name)->escape. ".\$"};
 	$template //= "$method->{name}\n\n";
-	$self->file_save($method->{path}, $template);
+	f($method->{path})->write($template);
 	$method
 }
 
@@ -192,9 +196,9 @@ sub to_trash {
 	my $c = 0;
 	$c++, $to = "$f ($c)" while -e $to;
 	
-	$self->mkpath($to);
+	f($to)->mkpath;
 	
-	$self->mvtree($path, $to);
+	f($path)->mvtree($to);
 	
 	$self
 }

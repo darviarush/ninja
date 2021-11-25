@@ -19,17 +19,14 @@ sub new {
 #@category Списки
 
 # Обходит указанную фс и создаёт списки пакетов и классов
-sub monitor {
+sub scan {
 	my ($self, $sub_path) = @_;
 	
 	my %classes;	# пакет -> [класс...]
 	
 	my %dir; my @files;
 	for my $inc (@{$self->{INC}}) {
-		my $incf = Ninja::Ext::File->new($inc);
-		
-		if ;
-		
+		my $incf = Ninja::Ext::File->new("$inc$sub_path");
 		
 		my ($dirs, $files) = $incf->lstree;
 		$classes{$_->path} //= [] for @$dirs;
@@ -38,8 +35,13 @@ sub monitor {
 	}
 	
 	for my $file (@$files) {
-		my $package = $file->dir // "[*]";
-		push @{$classes{$package}}, $file;
+		my $pack = $file->path_without_ext;
+		if(exists $classes{$pack}) {
+			push @{$classes{$pack}}, $file;
+		} else {
+			my $package = $file->dir;
+			push @{$classes{$package}}, $file;
+		}
 	}
 
 	return \%classes;
@@ -50,12 +52,16 @@ sub monitor {
 # классы в корне inc либо забрасываются в одноимённые пакеты, либо попадают в пакет [-]
 sub package_list {
 	my ($self) = @_;
-	my $info = $self->monitor;
-	my $root = delete $info->{"[*]"};
-	return $root? {root=>1, section=>"packages", name=>"[*]"}: (), map {+{
+	my $classes = $self->scan;
+
+	my $root = delete $classes{""};
+
+	# ¤	
+	return $root? {root=>1, section=>"packages", name=>"§", path=>""}: (), map {+{
 		section => "packages",
 		name => $_,
-	}} sort keys %$info;
+		path => $_,
+	}} sort keys %$classes;
 }
 
 # список классов в указанном пакете
@@ -63,24 +69,26 @@ sub package_list {
 sub class_list {
 	my ($self, $package) = @_;
 	
-	my $classes = $self->monitor->{$package->{name}};
+	my $file = Ninja::Ext::File->new($package->{path});
+	my ($dirs, $files) = $file->lsx;
+	my ($d1, $f1);
+	my $dir = $file->dir;
+	($d1, $f1) = $file->new($dir)->lsx if defined $dir;
 	
-	for my $file (@$classes) {
-		
-	}
-	
-		map { +{
-			section => "classes",
-			package => $package,
-			path => $_,
-			name => do {
-				my $name = substr $_, 1+length $path;
-				$name =~ s!\.[^\./]*$!!;
-				$name =~ s!/!::!g;
-				"${supername}::$name"
-
-	}
-	$package->{path}
+	map { +{
+		section => "classes",
+		package => $package,
+		path => $_,
+		name => do {
+			my $name = $_;
+			$name =~ s!\.[^\./]*$!!;
+			$name =~ s!/!.!g;
+			$name
+		}
+	}}
+	sort { $a cmp $b }
+	(grep {!exists $dirs{$_}} keys %$files),
+	map {$_->path} grep {$_->path_without_ext eq $dir} values %$f1;
 }
 
 # список категорий
@@ -89,8 +97,17 @@ sub category_list {
 	
 	my $path = $class->{path};
 	
-	my $jinnee = $self->jinnee($class->{path});
-	$jinnee->parse(Ninja::);
+	my $jinnee = $self->jinnee($path);
+	my $file = Ninja::Ext::File->new($path);
+	
+	my @A = $jinnee->parse($file);
+	return if !@A;
+	
+	unshift @A, {section=>"categories", name=>"§", class=>$class} if $A[0]{section} eq "methods";
+	
+	for my $entity () {
+		last if ;
+	}
 	
 	# local $_ = $self->file_read($path);
 	
@@ -219,86 +236,5 @@ sub class_put {
 }
 
 
-#@category Синтаксис
-
-sub tags {
-	my ($self) = @_;
-	
-	+{
-		Alert        => [-foreground => "#0000ff"],
-		BaseN        => [-foreground => "#8A2BE2"],
-		BString      => [-foreground => "#008B8B"],
-		Char         => [-foreground => "#4682B4"],
-		Comment      => [-foreground => '#696969', -relief => 'raised'],
-		DataType     => [-foreground => "#C71585"],
-		DecVal       => [-foreground => "#BC8F8F"],
-		Error        => [-background => '#FF0000'],
-		Float        => [-foreground => "#ff1493"],
-		Function     => [-foreground => "#4169E1"],
-		IString      => [-foreground => "#00008B"],
-		Keyword      => [-foreground => "#1E90FF"],
-		Normal       => [],
-		Operator     => [-foreground => "#ffa500"],
-		Others       => [-foreground => "#b03060"],
-		RegionMarker => [-foreground => "#96b9ff"],
-		Reserved     => [-foreground => "#9b30ff"],
-		String       => [-foreground => "#5F9EA0"],
-		Variable     => [-foreground => "#DC143C"],
-		Warning      => [-foreground => "#0000ff"],
-		
-		
-		# number => [-foreground => '#8A2BE2'],
-		# string => [-foreground => '#008B8B'],
-		
-		# variable => [-foreground => '#C71585'],
-		# class => [-foreground => '#C71585'],
-		# method => [-foreground => '#4169E1'],
-		# unary => [-foreground => '#BC8F8F'],
-		
-		# operator => [-foreground => '#8B0000'],
-		# prefix => [-foreground => '#008080'],
-		# postfix => [-foreground => '#1E90FF'],
-		# compare_operator => [-foreground => '#DC143C'],
-		# logic_operator => [-foreground => '#C71585'],
-		
-		# staple => [-foreground => '#4682B4'],
-		# bracket => [-foreground => '#5F9EA0'],
-		# brace => [-foreground => '#00008B'],
-		
-		# punct => [-foreground => '#00008B'],
-		# remark => [-foreground => '#696969', -relief => 'raised'],
-		
-		# error => [-background => '#FF0000'],
-	}
-}
-
-sub color {
-	my ($self, $who, $text) = @_;
-
-	use Ninja::Ext::Color;
-	my $color = Ninja::Ext::Color->new;
-	
-	my $lang = $color->by($who->{path} // $who->{category}{path});
-
-	$color->color($lang => $text);
-}
-
-# считывает файл синтаксиса (*.syn)
-sub syn {
-	my ($self, $path) = @_;
-	
-	open my $f, "<:utf8", $path or die "Не могу открыть `$path`. Причина: $!";
-	
-	while(<$f>) {
-		next if /^\s*#/;	# комментарий
-		# if /^\s*key\s+/;
-		
-		die "Строка $. файла `$path` не распознана!";
-	}
-	
-	close $f;
-	
-	$self
-}
 
 1;

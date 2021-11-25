@@ -20,7 +20,6 @@ sub singular { return qw/package class category method/ }
 our %SINGULAR = map { ((sections())[$_], (singular())[$_]) } 0..3;
 sub sin { $SINGULAR{$_[1]} }
 
-
 #@category Сущности
 
 # извлечение класса или метода
