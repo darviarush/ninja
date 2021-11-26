@@ -79,37 +79,22 @@ sub construct {
 			i->Eval("destroy .menu");
 			$self->construct;
 		});
+		
+		$i->call("themes", ["#C71585", "#DC143C", "#00FA9A", "#C71585", "#E6E6FA", "#9370DB", "#8A2BE2"]);
+		
 		$self->command('Темы', "Control-Alt-Key-2", sub {
-			$i->Eval("
-				catch { destroy .theme }
-				
-				toplevel .theme
-				wm title .theme {Темы | Ninja}
-			");
 			
-			$config->{themes} //= [{
-				bg_main => "#C71585",	# цвет меню, toolbox-а, шпингалетов, окон и фреймов
-				fg_main => "#ffffff",
-				bg_active_menu => "", # цвет активного меню
-			}];
+			# $config->{themes} //= [{
+				# bg_main => "#C71585",	# цвет меню, toolbox-а, шпингалетов, окон и фреймов
+				# # цвет текста
+				# "#ffffff",
+				# # цвет активного меню
+				# # цвет списков, ввода и текста
+				# # цвет выделенного пункта списка
+			# }];
 			
-			my $k;
-			for my $theme (@{$config->{themes}}) {
-				my $circle = ".theme.c" . $k++;
-				
-				$self->i->Eval("
-					canvas $circle -width 300 -height 300
-					grid $circle -sticky news
-					
-					$circle create 
-				");
-				
-				
-				
-				# цвет списков, ввода и текста
-				# цвет выделенного пункта списка
-				
-			}
+			$config->{themes} //= [qw/#C71585 /];
+			
 		});
 	$self->pop;
 	

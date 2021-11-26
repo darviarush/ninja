@@ -189,6 +189,48 @@ proc find_dialog {} {
 	focus .s.top.find
 }
 
+#@category темы
+
+proc darker {color {ratio 0.8}} {
+    lassign [winfo rgb . $color] r g b
+
+    set r [expr {$r * $ratio}]
+    set g [expr {$g * $ratio}]
+    set b [expr {$b * $ratio}]
+
+    return [format "#%02x%02x%02x" \
+            [expr {int($r/256)}] [expr {int($g/256)}] [expr {int($b/256)}]]
+}
+
+proc set_theme {theme} {
+	foreach w {} {
+		-configure 
+	}
+}
+
+proc themes {themes} {
+	catch { destroy .theme }
+
+	toplevel .theme
+	wm title .theme {Темы | Ninja}
+		
+	set i 0
+	foreach theme $themes {
+		incr i
+		set circle .theme.c$i
+		set s 50
+		canvas $circle -width $s -height $s
+		pack $circle
+		
+		$circle create oval 0 0 $s $s -fill $theme -outline [darker $theme]
+		
+		bind $circle <1> "puts $theme"
+	}
+	
+	regexp {(\d+)x(\d+)\+(-?\d+)\+(-?\d+)} [wm geometry .] -> w h x y
+	if {$x > $s} {set x [expr $x-$s]}
+	wm geometry .theme +$x+$y
+}
 
 #@category редактирование
 bind Entry <Insert> {}
