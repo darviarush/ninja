@@ -76,8 +76,40 @@ sub construct {
 	$self->cascade('Настройки');
 		$self->command('Сбросить комбинации клавишь', "Control-Alt-Key-1", sub {
 			delete $config->{menu};
-			$self->i->Eval("destroy .menu");
+			i->Eval("destroy .menu");
 			$self->construct;
+		});
+		$self->command('Темы', "Control-Alt-Key-2", sub {
+			$i->Eval("
+				catch { destroy .theme }
+				
+				toplevel .theme
+				wm title .theme {Темы | Ninja}
+			");
+			
+			$config->{themes} //= [{
+				bg_main => "#C71585",	# цвет меню, toolbox-а, шпингалетов, окон и фреймов
+				fg_main => "#ffffff",
+				bg_active_menu => "", # цвет активного меню
+			}];
+			
+			my $k;
+			for my $theme (@{$config->{themes}}) {
+				my $circle = ".theme.c" . $k++;
+				
+				$self->i->Eval("
+					canvas $circle -width 300 -height 300
+					grid $circle -sticky news
+					
+					$circle create 
+				");
+				
+				
+				
+				# цвет списков, ввода и текста
+				# цвет выделенного пункта списка
+				
+			}
 		});
 	$self->pop;
 	
