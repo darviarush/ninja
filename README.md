@@ -12,7 +12,7 @@
 
 # MINDMAP
 
-Ментальная карта проекта находится по адресу: https://mm.tt/map/2103949991?t=9mf0I64pdO.
+Ментальная карта проекта находится по адресу: https://www.mindmeister.com/ru/map/2103949991.
 
 # DESCRIPTION
 
