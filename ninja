@@ -13,7 +13,8 @@ my $cf = -e "./.ninjarc"? require("./.ninjarc"): {
 		INC => ["src"],
 	],
 	pl => ["Ninja::Monitor::Sector",
-		INC => ["lib"],
+		INC => ["."],
+		EXC => ["./.git"],
 	],
 	default => 'jn',
 };
@@ -23,5 +24,6 @@ my ($class_lang, %args) = @{$cf->{$ARGV[0] // $cf->{default}}};
 
 eval "require $class_lang";
 die $@ if $@;
+
 
 Ninja::MainWindow->new(jinnee => $class_lang->new(%args))->construct;

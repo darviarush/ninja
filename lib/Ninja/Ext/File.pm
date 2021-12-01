@@ -5,6 +5,9 @@ use common::sense;
 
 use Time::HiRes qw//;
 
+use Exporter 'import';
+our @EXPORT_OK = qw(f);
+
 # конструктор
 sub new {
 	my ($cls, $path) = @_;
@@ -12,6 +15,8 @@ sub new {
 		path => $path,
 	}, ref $cls || $cls;
 }
+
+sub f ($) { __PACKAGE__->new(@_) }
 
 #@category Пути
 
@@ -105,7 +110,7 @@ sub ls {
     map { $self->new($_) } $self->lspath
 }
 
-# хеши папок и файлов
+# хеши папок и файлов в указанном каталоге
 sub lsx {
 	my ($self) = @_;
 	my %dirs; my %files;
@@ -143,13 +148,16 @@ sub lstree_files {
 
 # Рекурсивно возвращает файлы и каталоги
 sub lstree {
-	my ($self) = @_;
+	my ($self, $exclude) = @_;
 	my @S = $self;
 	my $files = [];
 	my $dirs = [];
 	while(@S) {
 		for(pop(@S)->ls) {
-			if(-d $_->{path}) {push @S, $_; push @$files, $_} else {push @$dirs, $_}
+			if(-d $_->{path}) {
+				push(@S, $_), push @$dirs, $_ unless $exclude && $_->{path} ~~ $exclude;
+			} 
+			else {push @$files, $_}
 		}
 	}
 	return $dirs, $files;

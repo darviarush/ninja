@@ -3,13 +3,38 @@ package Ninja::Role::Monitor;
 
 use common::sense;
 
+use Ninja::Ext::File qw/f/;
+
+
 # конструктор
 sub new {
 	my $cls = shift;
 	bless {
 		INC => ["."],
+		jinnee => {},
 		@_
 	}, ref $cls || $cls;
+}
+
+#@category Гении
+
+# возвращает гения по расширению файла или первой строке
+sub jinnee {
+	my ($self, $file) = @_;
+	
+	my $path = $file->path;
+	my $lang = "Text";
+	
+	if($path =~ /\.(pl|pm|t)$/) {
+		$lang = "Perl";
+	}
+	
+	::msg "Ninja::Jinnee::$lang", $path; ::trace;
+	
+	$self->{jinnee}{$lang} //= do {
+		require "Ninja/Jinnee/$lang.pm";
+		"Ninja::Jinnee::$lang"->new
+	}
 }
 
 #@category Секции
@@ -141,6 +166,65 @@ sub find {
 
 
 #@category Подсветка синтаксиса
+
+sub tags {
+	my ($self) = @_;
+	
+	+{
+		Alert        => [-foreground => "#0000ff"],
+		BaseN        => [-foreground => "#8A2BE2"],
+		BString      => [-foreground => "#008B8B"],
+		Char         => [-foreground => "#4682B4"],
+		Comment      => [-foreground => '#696969', -relief => 'raised'],
+		DataType     => [-foreground => "#C71585"],
+		DecVal       => [-foreground => "#BC8F8F"],
+		Error        => [-background => '#FF0000'],
+		Float        => [-foreground => "#ff1493"],
+		Function     => [-foreground => "#4169E1"],
+		IString      => [-foreground => "#00008B"],
+		Keyword      => [-foreground => "#1E90FF"],
+		Normal       => [],
+		Operator     => [-foreground => "#ffa500"],
+		Others       => [-foreground => "#b03060"],
+		RegionMarker => [-foreground => "#96b9ff"],
+		Reserved     => [-foreground => "#9b30ff"],
+		String       => [-foreground => "#5F9EA0"],
+		Variable     => [-foreground => "#DC143C"],
+		Warning      => [-foreground => "#0000ff"],
+		
+		
+		# number => [-foreground => '#8A2BE2'],
+		# string => [-foreground => '#008B8B'],
+		
+		# variable => [-foreground => '#C71585'],
+		# class => [-foreground => '#C71585'],
+		# method => [-foreground => '#4169E1'],
+		# unary => [-foreground => '#BC8F8F'],
+		
+		# operator => [-foreground => '#8B0000'],
+		# prefix => [-foreground => '#008080'],
+		# postfix => [-foreground => '#1E90FF'],
+		# compare_operator => [-foreground => '#DC143C'],
+		# logic_operator => [-foreground => '#C71585'],
+		
+		# staple => [-foreground => '#4682B4'],
+		# bracket => [-foreground => '#5F9EA0'],
+		# brace => [-foreground => '#00008B'],
+		
+		# punct => [-foreground => '#00008B'],
+		# remark => [-foreground => '#696969', -relief => 'raised'],
+		
+		# error => [-background => '#FF0000'],
+	}
+}
+
+sub color {
+	my ($self, $who, $text) = @_;
+	my $path = $who->{section} eq "class"? $who->{path}: $who->{category}{class}{path};
+	my $file = f $path;
+	
+	$self->jinnee($file)->color($text)
+}
 
 sub color_ref {
 	my ($self, $who, $text) = @_;

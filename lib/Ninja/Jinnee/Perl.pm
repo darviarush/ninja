@@ -1,25 +1,19 @@
 package Ninja::Jinnee::Perl;
-# 
+# Парсер программ на perl
 
 use common::sense;
 
-use parent Ninja::Role::Jinnee;
-
-# конструктор
-sub new {
-	my ($cls) = @_;
-	bless {}, ref $cls || $cls;
-}
+use parent 'Ninja::Role::Jinnee';
 
 #@category Парсинг
 
-my $PACKAGE = qr/\#@package \s+ (?<package> [\w:]+ )/x;
+my $PACKAGE = qr/\#\@package \s+ (?<package> [\w:]+ )/x;
 my $CLASS = qr/\b package \s+ (?<class> [\w:]+ )/mx;
-my $CATEGORY = qr/\#@category [\ \t]+ (?<category> .*? ) [\ \t]* $/mx;
+my $CATEGORY = qr/\#\@category [\ \t]+ (?<category> .*? ) [\ \t]* $/mx;
 my $METHOD = qr/\b sub \s+ (?<method>[\w:]+)/mx;
-my $END = qr/(?<end> ^ \} [\ \t]* $/mx;
-my $INC = qr/(?<inc> \{ /mx;
-my $DEC = qr/(?<dec> \} /mx;
+my $END = qr/(?<end> ^ \} [\ \t]* $ )/mx;
+my $INC = qr/(?<inc> \{ )/mx;
+my $DEC = qr/(?<dec> \} )/mx;
 my $NOOP = qr{ (?<noop>
 	"( \\\\ | \\" | [^"] )*"
 	| '( \\\\ | \\' | [^'] )*'
@@ -32,46 +26,38 @@ my $NOOP = qr{ (?<noop>
 
 my %MANY = qw/package packages class classes category categories method methods/;
 
-#my $LITERAL = 
-
 sub parse {
-	my ($self, $file) = @_;
+	my ($self, $code) = @_;
 	
-	local $_ = $file->read;
+	local $_ = $code;
 	
+	my @A;
+	my $prev;
 	my $end = 0;
-	my @A; my @S; my $c;
 	my $package = {section=>"packages", name=>"*"};
 	my $class = {section=>"classes", name=>"*"};
 	my $category = {section=>"categories", name=>"*"};
 	
-	while($file =~ m{$PACKAGE|$CLASS|$CATEGORY|$METHOD|$END|$NOOP|$INC|$DEC}gx) {
-		next if exists $+{noop};
-		
-		if(exists $+{inc}) { $c++ }
-		elsif(exists $+{dec}) {
-			if($c != 0) $c--;
-			if($c == 0 && @S) {
-				my $c = pop @S;
-				
-			}
-		}
-		
+	while(m{$PACKAGE|$CLASS|$CATEGORY|$METHOD|$END}gx) {
+
 		my $mid = length($`) + length $&;
 		my @a = (from=>$end, mid=>$mid);
 		$end = $mid;
 		
 		if(exists $+{package}) {
-			push @A, $package = {section=>"packages", name=>$+{package}, @a};
+			push @A, $prev = $package = {section=>"packages", name=>$+{package}};
 		}
 		elsif(exists $+{class}) {
-			push @A, $class = {section=>"classes", name=>$+{class}, package=>$package, @a};
+			push @A, $prev = $class = {section=>"classes", name=>$+{class}, package=>$package, @a};
 		}
 		elsif(exists $+{category}) {
-			push @A, $category = {section=>"categories", name=>$+{category}, class=>$class, @a};
+			push @A, $prev = $category = {section=>"categories", name=>$+{category}, class=>$class};
 		}
 		elsif(exists $+{method}) {
-			push @A, {section=>"methods", name=>$+{method}, category=>$category, @a};
+			push @A, $prev = {section=>"methods", name=>$+{method}, category=>$category, @a};
+		}
+		elsif(exists $+{end}) {
+			$prev->{to} = $end if $prev;
 		}
 
 	}
