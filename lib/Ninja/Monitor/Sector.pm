@@ -87,23 +87,27 @@ sub method_list {
 
 #@category Читатели
 
-# возвращает номер строки и тело класса
-sub class_get {
+# возвращает текст файла и конец заголовка класса
+sub _class_get {
 	my ($self, $class) = @_;
-	
 	my $file = f $class->{path};
 	my $code = $file->read;
+	my @A = $self->jinnee($file)->parse($code);
 	
 	# ищем первую категорию или метод, чтобы до неё вывести класс
 	my $first;
-	for my $who ($self->jinnee($file)->parse($code)) {
+	for my $who (@A) {
 		$first = $who, last if $who->{section} =~ /^(categories|methods)$/;
 	}
 	
-	# если категория или метод не найдены, то возвращаем весь файл
-	return 1, $code if !$first;
+	return $code, $first? $first->{mid}: length $code, \@A;
+}
 
-	return 1, substr $code, 0, $first->{mid};
+# возвращает номер строки и заголовок класса
+sub class_get {
+	my ($self, $class) = @_;	
+	my ($code, $end) = $self->_class_get($class);
+	return 1, substr $code, 0, $end;
 }
 
 # строка
@@ -119,10 +123,9 @@ sub _line {
 	$line
 }
 
-# Возвращает номер строки и тело метода
-sub method_get {
+# возвращает код файла и позицию начала и конца метода
+sub _method_get {
 	my ($self, $method) = @_;
-	
 	my $file = f $method->{category}{class}{path};
 	my $code = $file->read;
 	my @A = $self->jinnee($file)->parse($code);
@@ -138,9 +141,18 @@ sub method_get {
 	}
 	
 	my $from = $c == 0? $m->{mid}: $m->{from};
-	my $end = $m->{end} // ($n? $n->{from}: undef);
+	my $end = $m->{end} // ($n? $n->{from}: length $code);
 	
-	return _line($code, $from), $end? substr($code, $from, $end - $from): substr($code, $from);
+	return $code, $from, $end;
+}
+
+# Возвращает номер строки и тело метода
+sub method_get {
+	my ($self, $method) = @_;
+	
+	my ($code, $from, $end) = $self->_method_get($method);
+	
+	return _line($code, $from), substr($code, $from, $end - $from);
 }
 
 #@category Писатели
@@ -149,13 +161,14 @@ sub method_get {
 sub class_put {
 	my ($self, $class, $text) = @_;
 	
-	my $file = f $class->{path};
-	
-	
+	my ($code, $end, $A) = $self->_class_get($class);
+
 	# замена текста заголовка
-	my $file = $self->file_read($class->{path});
-	$file =~ s!^(.*?)(\nsub\b|\n#\@category\b|$)!$text$2!s;
-	$self->file_save($class->{path}, $file);
+	$code =~ s/^(.{$end})/$text/s;
+	
+	f($class->{path})->write($code);
+
+	
 	
 	# переименование файла класса по пакету
 	if($text =~ /^package\s+([\w:]+)/) {
