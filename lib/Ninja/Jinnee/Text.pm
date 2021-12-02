@@ -11,10 +11,10 @@ sub parse {
 	return;
 }
 
-sub color {
-	my ($self, $code) = @_;
+# sub color {
+	# my ($self, $who, $code) = @_;
 	
-	return [[$code]];
-}
+	# return [[$code]];
+# }
 
 1;

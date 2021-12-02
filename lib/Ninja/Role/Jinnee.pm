@@ -21,7 +21,9 @@ sub color {
 	use Ninja::Ext::Color;
 	my $color = Ninja::Ext::Color->new;
 	
-	my $lang = $color->by($who->{path} // $who->{category}{path});
+	my $lang = $color->by($who->{path} // $who->{category}{class}{path});
+
+	return [[$text]] if !$lang;
 
 	$color->color($lang => $text);
 }

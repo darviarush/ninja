@@ -29,8 +29,6 @@ sub jinnee {
 		$lang = "Perl";
 	}
 	
-	::msg "Ninja::Jinnee::$lang", $path; ::trace;
-	
 	$self->{jinnee}{$lang} //= do {
 		require "Ninja/Jinnee/$lang.pm";
 		"Ninja::Jinnee::$lang"->new
@@ -220,10 +218,10 @@ sub tags {
 
 sub color {
 	my ($self, $who, $text) = @_;
-	my $path = $who->{section} eq "class"? $who->{path}: $who->{category}{class}{path};
+	my $path = $who->{section} eq "classes"? $who->{path}: $who->{category}{class}{path};
 	my $file = f $path;
 	
-	$self->jinnee($file)->color($text)
+	$self->jinnee($file)->color($who, $text)
 }
 
 sub color_ref {

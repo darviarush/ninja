@@ -64,17 +64,12 @@ sub category_list {
 	my ($self, $class) = @_;
 	
 	my $file = f $class->{path};
-	map { $_->{class} = $class; $_ } grep { $_->{section} eq "categories" } $self->jinnee($file)->parse($file->read);
-		
-	# local $_ = $self->file_read($path);
 	
-	# my @cat;
-	# while(/^#\@category[ \t]+(.*?)[ \t]*$/gm) {
-		# push @cat, {section=>"categories", class=>$class, path=>$path, name=>$1};
-	# }
-	# # ∰ - три факториала в круге
-	# # Qiyeshipin Shengchanxuke logo.svg
-	# return {section=>"categories", class=>$class, path=>$path, name=>"§", header=>1}, @cat
+	my @A = $self->jinnee($file)->parse($file->read);
+	
+	return (grep { $_->{section} eq "methods" && !defined $_->{category} } @A) == 0? ()
+		: {head=>1, name=>"[§]", class=>$class},
+		map { $_->{class} = $class; $_ } grep { $_->{section} eq "categories" } @A;
 }
 
 # список методов
@@ -84,24 +79,13 @@ sub method_list {
 	my $class = $category->{class};
 	my $file = f $class->{path};
 	map { $_->{category} = $category; $_ }
-		grep { $_->{section} eq "methods" && $_->{category}->{name} eq $category->{name} } 
-			$self->jinnee($file)->parse($file->read);
+		grep { $_->{section} eq "methods" && (
+			$category->{head}? !defined($_->{category}): $_->{category}->{name} eq $category->{name}) } 
+				$self->jinnee($file)->parse($file->read);
 }
 
 
 #@category Читатели
-
-sub _line {
-	my ($code, $from) = @_;
-	
-	my $line = 1;
-	while($code =~ /\n/g) {
-		last if length($`) > $from;
-		$line++;
-	}
-	
-	$line
-}
 
 # возвращает номер строки и тело класса
 sub class_get {
@@ -118,11 +102,21 @@ sub class_get {
 	
 	# если категория или метод не найдены, то возвращаем весь файл
 	return 1, $code if !$first;
-	
-	# если это метод, то он имеет право на комментарии перед ним
-	
-	# если это категория, то 
+
 	return 1, substr $code, 0, $first->{mid};
+}
+
+# строка
+sub _line {
+	my ($code, $from) = @_;
+	
+	my $line = 1;
+	while($code =~ /\n/g) {
+		last if length($`) > $from;
+		$line++;
+	}
+	
+	$line
 }
 
 # Возвращает номер строки и тело метода
@@ -131,9 +125,22 @@ sub method_get {
 	
 	my $file = f $method->{category}{class}{path};
 	my $code = $file->read;
-	my ($mmethod) = grep { $_->{section} eq "methods" && $_->{name} eq $method->{name} } $self->jinnee($file)->parse($code);
+	my @A = $self->jinnee($file)->parse($code);
 	
-	return _line($code, $mmethod->{from}), substr $code, $mmethod->{from}, $mmethod->{to};
+	my $c; my $m; my $n;
+	for(my $i=0; $i<@A; $i++) {
+		
+		$m = $A[$i], 
+		$n = $i==$#A? undef: $A[$i+1], 
+			last if $A[$i]{name} eq $method->{name} && $A[$i]->{section} eq "methods";
+			
+		$c++ if $A[$i]->{section} ~~ [qw/methods categories/];
+	}
+	
+	my $from = $c == 0? $m->{mid}: $m->{from};
+	my $end = $m->{end} // ($n? $n->{from}: undef);
+	
+	return _line($code, $from), $end? substr($code, $from, $end - $from): substr($code, $from);
 }
 
 #@category Писатели

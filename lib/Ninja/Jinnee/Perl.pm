@@ -7,13 +7,16 @@ use parent 'Ninja::Role::Jinnee';
 
 #@category Парсинг
 
-my $PACKAGE = qr/\#\@package \s+ (?<package> [\w:]+ )/x;
-my $CLASS = qr/\b package \s+ (?<class> [\w:]+ )/mx;
-my $CATEGORY = qr/\#\@category [\ \t]+ (?<category> .*? ) [\ \t]* $/mx;
-my $METHOD = qr/\b sub \s+ (?<method>[\w:]+)/mx;
-my $END = qr/(?<end> ^ \} [\ \t]* $ )/mx;
+my $PACKAGE  = qr/^ [\ \t]* \#\@package \s+ (?<package> [\w:]+ )/mxn;
+my $CLASS    = qr/^ [\ \t]* package \s+ (?<class> [\w:]+ )/mxn;
+my $CATEGORY = qr/^ [\ \t]* \#\@category [\ \t]+ (?<category> .*? ) [\ \t]* $/mxn;
+my $METHOD   = qr/^ ([\ \t]* \#.*\n)* [\ \t]* sub \s+ (?<method>[\w:]+) .* ([\ \t]*(\n|$))+ /mx;
+my $END      = qr/(?<end> ^ [\ \t]* \} [\ \t]* ([\ \t]*(\n|$))+ )/mxn;
+
 my $INC = qr/(?<inc> \{ )/mx;
 my $DEC = qr/(?<dec> \} )/mx;
+
+
 my $NOOP = qr{ (?<noop>
 	"( \\\\ | \\" | [^"] )*"
 	| '( \\\\ | \\' | [^'] )*'
@@ -32,32 +35,32 @@ sub parse {
 	local $_ = $code;
 	
 	my @A;
-	my $prev;
 	my $end = 0;
-	my $package = {section=>"packages", name=>"*"};
-	my $class = {section=>"classes", name=>"*"};
-	my $category = {section=>"categories", name=>"*"};
+	my $package;
+	my $class;
+	my $category;
 	
 	while(m{$PACKAGE|$CLASS|$CATEGORY|$METHOD|$END}gx) {
 
-		my $mid = length($`) + length $&;
-		my @a = (from=>$end, mid=>$mid);
-		$end = $mid;
+		my $mid = length $`;
+		my $after = $mid + length $&;
+		my @a = (from=>$end, mid=>$mid, after=>$after);
+		$end = $after;
 		
 		if(exists $+{package}) {
-			push @A, $prev = $package = {section=>"packages", name=>$+{package}};
+			push @A, $package = {section=>"packages", name=>$+{package}, @a};
 		}
 		elsif(exists $+{class}) {
-			push @A, $prev = $class = {section=>"classes", name=>$+{class}, package=>$package, @a};
+			push @A, $class = {section=>"classes", name=>$+{class}, package=>$package, @a};
 		}
 		elsif(exists $+{category}) {
-			push @A, $prev = $category = {section=>"categories", name=>$+{category}, class=>$class};
+			push @A, $category = {section=>"categories", name=>$+{category}, class=>$class, @a};
 		}
 		elsif(exists $+{method}) {
-			push @A, $prev = {section=>"methods", name=>$+{method}, category=>$category, @a};
+			push @A, {section=>"methods", name=>$+{method}, category=>$category, @a};
 		}
 		elsif(exists $+{end}) {
-			$prev->{to} = $end if $prev;
+			$A[$#A]{end} = $end if @A;
 		}
 
 	}
