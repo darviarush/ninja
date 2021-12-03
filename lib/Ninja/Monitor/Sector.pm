@@ -67,9 +67,7 @@ sub category_list {
 	
 	my @A = $self->jinnee($file)->parse($file->read);
 	
-	return (grep { $_->{section} eq "methods" && !defined $_->{category} } @A) == 0? ()
-		: {head=>1, name=>"[§]", class=>$class},
-		map { $_->{class} = $class; $_ } grep { $_->{section} eq "categories" } @A;
+	map { $_->{class} = $class; $_ } grep { $_->{section} eq "categories" } @A;
 }
 
 # список методов
@@ -79,8 +77,7 @@ sub method_list {
 	my $class = $category->{class};
 	my $file = f $class->{path};
 	map { $_->{category} = $category; $_ }
-		grep { $_->{section} eq "methods" && (
-			$category->{head}? !defined($_->{category}): $_->{category}->{name} eq $category->{name}) } 
+		grep { $_->{section} eq "methods" && $_->{category}->{name} eq $category->{name} } 
 				$self->jinnee($file)->parse($file->read);
 }
 
@@ -94,13 +91,11 @@ sub _class_get {
 	my $code = $file->read;
 	my @A = $self->jinnee($file)->parse($code);
 	
-	# ищем первую категорию или метод, чтобы до неё вывести класс
+	# ищем первую категорию, чтобы до неё вывести класс
 	my $first;
-	for my $who (@A) {
-		$first = $who, last if $who->{section} =~ /^(categories|methods)$/;
-	}
+	for(@A) { $first = $_, last if $_->{section} eq "categories" }
 	
-	return $code, $first? $first->{mid}: length $code, \@A;
+	return $code, $first? $first->{from}: length($code), \@A;
 }
 
 # возвращает номер строки и заголовок класса
@@ -129,21 +124,11 @@ sub _method_get {
 	my $file = f $method->{category}{class}{path};
 	my $code = $file->read;
 	my @A = $self->jinnee($file)->parse($code);
+
+	my $first;
+	for(@A) { $first = $_, last if $_->{name} eq $method->{name} && $_->{section} eq "methods" }
 	
-	my $c; my $m; my $n;
-	for(my $i=0; $i<@A; $i++) {
-		
-		$m = $A[$i], 
-		$n = $i==$#A? undef: $A[$i+1], 
-			last if $A[$i]{name} eq $method->{name} && $A[$i]->{section} eq "methods";
-			
-		$c++ if $A[$i]->{section} ~~ [qw/methods categories/];
-	}
-	
-	my $from = $c == 0? $m->{mid}: $m->{from};
-	my $end = $m->{end} // ($n? $n->{from}: length $code);
-	
-	return $code, $from, $end;
+	return $code, $first->{from} // 0, $first->{end} // length($code);
 }
 
 # Возвращает номер строки и тело метода
@@ -168,8 +153,8 @@ sub class_put {
 	
 	f($class->{path})->write($code);
 
-	
-	
+	#$self->jinnee($class)->;
+
 	# переименование файла класса по пакету
 	if($text =~ /^package\s+([\w:]+)/) {
 		my $path = $1;
