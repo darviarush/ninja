@@ -39,14 +39,14 @@ my %MANY = qw/package packages class classes category categories method methods/
 #	1. Если нет пакета в начале файла, то он добавляется
 #	2. В конце метода 
 
-# {пакет1=>{класс1=>{категория1=>{""=>порядок категории, метод1=>порядок метода}}}}
+# {пакет1=>{класс1=>{""=>{from,end}, категория1=>{""=>порядок категории, метод1=>{from, end, order=>порядок метода}}}}}
 
 sub parse {
 	my ($self, $code) = @_;
 	
 	local $_ = $code;
 	
-	
+	my $x = {};
 	
 	my @A;
 	my $package = {section=>"packages", name => "."};
