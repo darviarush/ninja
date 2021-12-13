@@ -59,15 +59,28 @@ sub class_list {
 	} @{$self->{INC}};
 }
 
+# перекладывает классы в виде категорий
+sub _parse {
+	my ($self, $path) = @_;
+	my $file = f $path;
+	my $x = $self->jinnee($file)->parse($file->read);
+	
+	my $c = 0;
+	my $h = {};
+	my $ah;
+	
+	push @A, $x;
+	
+	return \@A;
+}
+
 # список категорий
 sub category_list {
 	my ($self, $class) = @_;
 	
-	my $file = f $class->{path};
+	my $ax = $self->_parse($class->{path});
 	
-	my @A = $self->jinnee($file)->parse($file->read);
-	
-	map { $_->{class} = $class; $_ } grep { $_->{section} eq "categories" } @A;
+	map {+{section=>"categories", class=>$class, name=>, }} @$ax
 }
 
 # список методов
