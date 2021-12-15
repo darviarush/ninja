@@ -1,0 +1,67 @@
+#!/usr/bin/perl
+
+use common::sense;
+use open qw/:std :utf8/;
+use lib "lib";
+
+use Ninja::Ext::Runtime;
+use Ninja::Ext::File qw/f/;
+
+my @flags = grep { /^-/ } @ARGV;
+my @args = grep { !/^-/ } @ARGV;
+
+my $head = "
+	use common::sense; 
+	use open qw/:std :utf8/;
+	use lib \"lib\";
+	use Test::More;
+	use Ninja::Ext::Runtime;
+";
+
+$head =~ s!\s+! !g;
+
+my @tests;
+my @files = @args? (map {f $_} @args): grep { $_->path =~ /\.md\.t$/ } f("md")->lstree_files;
+
+for my $f ( @files ) {
+	local $_ = $f->read;
+	
+	s!^[^# \t\n]!\t# $&!gm;
+	
+	my $c = 0;
+	s!^##[\t ]*(.*?)[\t ]*$!to_subtest($c++, $1)!gme;
+	
+	s!^(?:\t| {4})([\t ]*)(.*?)[\t ]+(?:→)[\t ]+(.*?);[\t ]*$!"$1is_deeply($2, $3, ${\to_q(\"$2 ↦ $3\")});"!gme;
+	
+	s!^(\t| {4})!!gm;
+	
+	my $end = "\ndone_testing();\n";
+	$end = "done_testing(); }; $end" if $c;
+	
+	my $path = $f->path;
+	$path =~ s!^md/!t/!;
+	$path =~ s!\.md\.t$!.t!;
+	f($path)->mkpath->write("$head$_$end");
+	push @tests, $path;
+	
+	print "$f->{path} → $path\n" if "-c" ~~ \@flags;
+}
+
+exit system "prove", "-c", @tests? @tests: "t" unless "-c" ~~ \@flags;
+
+
+# Превращает текст в перловую строку
+sub to_q {
+	my ($s) = @_;
+	$s =~ s![\\']!\\$&!g;
+	"'$s'"
+}
+
+
+# Возвращает код для подтеста
+sub to_subtest {
+	my ($c, $name) = @_;
+	$name = to_q($name);
+	($c? "done_testing(); }; ": "") .
+	"subtest $name => sub {"
+}

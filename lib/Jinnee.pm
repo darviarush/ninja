@@ -510,7 +510,7 @@ sub is_unary { my ($s) = @_; ref $s eq "HASH" && $s->{type} =~ /^(unary|lunary)/
 sub to_tree {
 	my ($self, $text) = @_;
 	
-	my $ret = $self->lex($text);
+	my $ret = $self->color($text);
 
 	# 1. убираем пробелы и строки перед методами и закрывающими скобками и повторяющиеся пустые строки
 	my $line = 1;

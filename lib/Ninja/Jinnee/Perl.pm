@@ -43,10 +43,8 @@ sub parse {
 	my $package = "[§]";
 	my $class = "[§]";
 	my $category = "[§]";
-
-	my $from = 0;
 	
-	my @A;	# текущий
+	my @A = {};
 	
 	
 	while(m{$CLASS|$CATEGORY|$METHOD|$END}gx) {
@@ -54,57 +52,33 @@ sub parse {
 		my $mid = length $`;
 		my $after = $mid + length $&;
 		
-		if(exists $+{package}) {
-			$A[$#A]{end} = $mid if @A;
-			
-			push @A, $x->{$package}{$class = $+{class}}{""} = {
-				from => $mid, 
-				end => $after,
-			};
-			# сбрасываем по дефолту
-			$class = "[§]";
-			$category = "[§]";
-		}
-		elsif(exists $+{class}) {
-			# продолжается до категории или комментариев плотно прилегающих к первому методу
-			push @A, $x->{$package}{$class = $+{class}}{""} = {
-				from => $end,
-				end => $after,
-			};
-			# сбрасываем в дефолтную
+		if(exists $+{class}) {
+			push @A, $x->{$package}{$class = $+{class}}{""} = {from=>$from, end=>$after};
 			$category = "[§]";
 		}
 		elsif(exists $+{category}) {
-			# продолжается от себя - передаём from - на end предыдущему
-			$A[$#A]{end} = $mid if @A;
-			
+			$A[$#A]{end} = $mid;
 			push @A, $x->{$package}{$class}{$category = $+{category}}{""} = {from=>$mid, end=>$after};
 		}
 		elsif(exists $+{method}) {
 			# если перед ним класс - то отдаём классу текст до комментариев перед методом
-			if($category eq "[§]") {
+			if(1 >= keys %{$x->{$package}{$class}}) {
 				$from = length $` if /^(#.*\n)*\Q$&\E/;
-				$A[$#A]{end} = $from if @A;
+				$A[$#A]{end} = $from;
 			}
-			push @A, $x->{$package}{$class}{$category}{$+{method}} = {
-				from => $from,
-				end => $after,
-			};
+			push @A, $x->{$package}{$class}{$category}{$+{method}} = {from=>$from, end=>$after};
 		}
 		elsif(exists $+{end}) {
-			$A[$#A]{end} = $after if @A;
+			$A[$#A]{end} = $after;
 		}
 
 		$from = $after;
 	}
 	
 	if($A[$#A]{end} != length $code) {
-		$x->{$package}{$class}{"[¶]"}{"[¶]"} = {from=>$A[$#A]{end}, end => length $code, order => $order+1};
+		$x->{$package}{$class}{"[§]"}{"[¶]"} = {from=>$A[$#A]{end}, end=>length $code};
 	}
-	
-	my $i = 0;
-	$_->{order} = ++$i for @A;
-	
+
 	return $x;
 }
 
