@@ -69,7 +69,7 @@ sub category_list {
 	my $order = sub { my ($cat) = @_; $cat->{$a}->{""}{from} <=> $cat->{$b}->{""}{from} };
 	
 	map { my $clss = $x->{$_}; my $pkg = $_;
-		map { my $cats = $cls->{$_}; my $cn=$_;
+		map { my $cats = $clss->{$_}; my $cn=$_;
 			map {+{section=>"categories", class=>$class, name=>$_, p=>$pkg, c=>$cn}} 
 				sort {$order->($cats)} keys %$cats
 		} sort {$order->($clss)} keys %$clss
@@ -127,8 +127,9 @@ sub method_get {
 	my $category = $method->{category};
 	my ($pack, $cname, $class, $name) = @$category{qw/p c class name/};
 	my $file = f $class->{path};
-	my $x = $self->jinnee($file)->parse($file->read);
+	my $x = $self->jinnee($file)->parse(my $code = $file->read);
 	
+	my ($from, $end) = @{$x->{$pack}{$cname}{$name}{$method->{name}}}{qw/from end/};
 	
 	return _line($code, $from), substr($code, $from, $end - $from);
 }

@@ -37,5 +37,9 @@ is_deeply $jinnee->color($who, "a++"), [$A, ["++", "unary"]];
 is_deeply $jinnee->color($who, "a*b"), [$A, ["*", "method"], $B];
 is_deeply $jinnee->color($who, "a-- * b"), [$A, ["--", "unary"], $S, ["*", "method"], $S, $B];
 is_deeply $jinnee->color($who, "a - -b"), [$A, $S, ["-", "method"], $S, ["-", "lunary"], $B];
-done_testing(); }; 
+
+done_testing(); }; subtest 'Числа' => sub {
+
+is_deeply($jinnee->color($who, "10.1"), [[10.1, "number"]], '$jinnee->color($who, "10.1") ↦ [[10.1, "number"]]');
+is_deeply($jinnee->color($who, "10"), [[10, "integer"]], '$jinnee->color($who, "10") ↦ [[10, "integer"]]');done_testing(); }; 
 done_testing();

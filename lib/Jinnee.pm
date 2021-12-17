@@ -311,8 +311,8 @@ sub color {
 
 		(?<remark> ([\ \t]|^) \# [^\n]* ) |
 		
-		(?<integer> \d+ ) |
 		(?<number> \d+\.\d+ ) |
+		(?<integer> \d+ ) |
 		(?<string>
 			""" (\\"|"(?!"")|[^"])* """(?!") | ''' (\\'|'(?!'')|[^'])* '''(?!')
 			| "(\\"|[^"])*"(?!") | '(\\'|[^'])*'(?!')
@@ -492,7 +492,7 @@ sub prio {
 			$x = substr $s->{lex}, 0, 1;
 			$x = $s->{type} eq "unary"? "A$x": $s->{type} eq "lunary"? "${x}A": $x;
 			$x = $op->{$x};
-			die "нет приоритета у оператора $r" if !defined $x;
+			die "нет приоритета у оператора `$r`" if !defined $x;
 		}
 		$x
 	}:
@@ -510,8 +510,8 @@ sub is_unary { my ($s) = @_; ref $s eq "HASH" && $s->{type} =~ /^(unary|lunary)/
 sub to_tree {
 	my ($self, $text) = @_;
 	
-	my $ret = $self->color($text);
-
+	my $ret = $self->color({}, $text);
+	
 	# 1. убираем пробелы и строки перед методами и закрывающими скобками и повторяющиеся пустые строки
 	my $line = 1;
 	my $char = 1;
@@ -556,6 +556,8 @@ sub to_tree {
 	}
 	
 	my %I = map { int($_) => 1 } @I;
+	
+	#::msg "%I", \%I;
 	
 	# 3. внутри скобок производим ранжировку по операторам
 	#

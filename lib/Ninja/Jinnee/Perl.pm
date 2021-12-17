@@ -45,6 +45,7 @@ sub parse {
 	my $category = "[§]";
 	
 	my @A = {};
+	my $from = 0;
 	
 	
 	while(m{$CLASS|$CATEGORY|$METHOD|$END}gx) {

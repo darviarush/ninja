@@ -5,11 +5,9 @@ use Ninja::Ext::Runtime;
 use Jinnee;
 
 my $jinnee = Jinnee->new;
-
+#$Jinnee::DEBUG = 2;
 
 subtest 'Операторы' => sub {
-
-#$Jinnee::DEBUG = 2;
 
 # Бинарные операторы с одинаковым приоритетом выстраиваются в список:
 
@@ -27,13 +25,15 @@ done_testing(); }; subtest 'Сообщения' => sub {
 
 # Сообщения посылаются методам и могут быть унарными и бинарными.
 
-is Jinnee::s_tree0($jinnee->to_tree("a method++ * -x!")), "(((a method)++) * ((x -)!))";
-is Jinnee::s_tree0($jinnee->to_tree("a method -x!")), "(a method ((x -)!))";
-is Jinnee::s_tree0($jinnee->to_tree("a at i put 10")), "(a at i put 10)";
+# Сообщения имеют одинаковый приоритет и выстраиваются в список.
+
+is_deeply(Jinnee::s_tree0($jinnee->to_tree("a method++ * -x!")), "(((a method)++) * ((x -)!))", 'Jinnee::s_tree0($jinnee->to_tree("a method++ * -x!")) ↦ "(((a method)++) * ((x -)!))"');
+is_deeply(Jinnee::s_tree0($jinnee->to_tree("a method -x!")), "(a method ((x -)!))", 'Jinnee::s_tree0($jinnee->to_tree("a method -x!")) ↦ "(a method ((x -)!))"');
+is_deeply(Jinnee::s_tree0($jinnee->to_tree("a at i put 10")), "(a at i put 10)", 'Jinnee::s_tree0($jinnee->to_tree("a at i put 10")) ↦ "(a at i put 10)"');
 
 done_testing(); }; subtest 'Методы' => sub {
 
-is Jinnee::s_tree0($jinnee->to_tree(<<"END1"))."\n", <<"END2";
+is_deeply(Jinnee::s_tree0($jinnee->to_tree(<<"END1"))."\n", <<"END2", 'Jinnee::s_tree0($jinnee->to_tree(<<"END1"))."\\n" ↦ <<"END2"');
 a save
 # method
 
@@ -47,7 +47,7 @@ a save
 
 END1
 ((a save)
-(("x.log" asFile) set 10.1 write "save")
+(("x.log" asFile) set (10.1) write "save")
 ((a + 1) ^))
 END2
 done_testing(); }; 

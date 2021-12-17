@@ -5,11 +5,12 @@
 	use Jinnee;
 
 	my $jinnee = Jinnee->new;
-
+	
+Для трассировки построения дерева грамматического разбора можно воспользоваться переменной `$Jinnee::DEBUG`.
+	
+	#$Jinnee::DEBUG = 2;
 
 ## Операторы
-
-	#$Jinnee::DEBUG = 2;
 
 Бинарные операторы с одинаковым приоритетом выстраиваются в список:
 
@@ -27,13 +28,15 @@ Cкобки остаются:
 
 Сообщения посылаются методам и могут быть унарными и бинарными.
 
-	is Jinnee::s_tree0($jinnee->to_tree("a method++ * -x!")), "(((a method)++) * ((x -)!))";
-	is Jinnee::s_tree0($jinnee->to_tree("a method -x!")), "(a method ((x -)!))";
-	is Jinnee::s_tree0($jinnee->to_tree("a at i put 10")), "(a at i put 10)";
+Сообщения имеют одинаковый приоритет и выстраиваются в список.
+
+	Jinnee::s_tree0($jinnee->to_tree("a method++ * -x!")) → "(((a method)++) * ((x -)!))";
+	Jinnee::s_tree0($jinnee->to_tree("a method -x!")) 	  → "(a method ((x -)!))";
+	Jinnee::s_tree0($jinnee->to_tree("a at i put 10")) 	  → "(a at i put 10)";
 	
 ## Методы
 
-	is Jinnee::s_tree0($jinnee->to_tree(<<"END1"))."\n", <<"END2";
+	Jinnee::s_tree0($jinnee->to_tree(<<"END1"))."\n" → <<"END2";
 	a save
 	# method
 
@@ -47,6 +50,6 @@ Cкобки остаются:
 
 	END1
 	((a save)
-	(("x.log" asFile) set 10.1 write "save")
+	(("x.log" asFile) set (10.1) write "save")
 	((a + 1) ^))
 	END2

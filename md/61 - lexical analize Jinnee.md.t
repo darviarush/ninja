@@ -37,3 +37,8 @@
 	is_deeply $jinnee->color($who, "a*b"), [$A, ["*", "method"], $B];
 	is_deeply $jinnee->color($who, "a-- * b"), [$A, ["--", "unary"], $S, ["*", "method"], $S, $B];
 	is_deeply $jinnee->color($who, "a - -b"), [$A, $S, ["-", "method"], $S, ["-", "lunary"], $B];
+
+## Числа
+
+	$jinnee->color($who, "10.1")	→ [[10.1, "number"]];
+	$jinnee->color($who, "10")		→ [[10, "integer"]];
