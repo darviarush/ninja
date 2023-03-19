@@ -64,45 +64,48 @@ sub category_list {
 	my ($self, $class) = @_;
 	
 	my $file = f $class->{path};
+	my $x = $self->jinnee($file)->parse($file->read);
 	
-	my @A = $self->jinnee($file)->parse($file->read);
+	my $order = sub { my ($cat) = @_; $cat->{$a}->{""}{from} <=> $cat->{$b}->{""}{from} };
 	
-	map { $_->{class} = $class; $_ } grep { $_->{section} eq "categories" } @A;
+	map { my $clss = $x->{$_}; my $pkg = $_;
+		map { my $cats = $clss->{$_}; my $cn=$_;
+			map {+{section=>"categories", class=>$class, name=>$_, p=>$pkg, c=>$cn}} 
+				sort {$order->($cats)} keys %$cats
+		} sort {$order->($clss)} keys %$clss
+	} sort {$order->($x)} keys %$x;
 }
 
 # список методов
 sub method_list {
 	my ($self, $category) = @_;
 
-	my $class = $category->{class};
+	my ($pack, $cname, $class, $name) = @$category{qw/p c class name/};
 	my $file = f $class->{path};
-	map { $_->{category} = $category; $_ }
-		grep { $_->{section} eq "methods" && $_->{category}->{name} eq $category->{name} } 
-				$self->jinnee($file)->parse($file->read);
+	my $x = $self->jinnee($file)->parse($file->read);
+
+	my $cat = $x->{$pack}{$cname}{$name};
+
+	map {+{section=>"methods", category=>$category, name=>$_}}
+		sort { $cat->{$a}{from} <=> $cat->{$b}{from} }
+		grep { $_ ne "" }
+		keys %$cat
 }
 
 
 #@category Читатели
 
-# возвращает текст файла и конец заголовка класса
-sub _class_get {
-	my ($self, $class) = @_;
-	my $file = f $class->{path};
-	my $code = $file->read;
-	my @A = $self->jinnee($file)->parse($code);
-	
-	# ищем первую категорию, чтобы до неё вывести класс
-	my $first;
-	for(@A) { $first = $_, last if $_->{section} eq "categories" }
-	
-	return $code, $first? $first->{from}: length($code), \@A;
-}
-
 # возвращает номер строки и заголовок класса
 sub class_get {
 	my ($self, $class) = @_;	
-	my ($code, $end) = $self->_class_get($class);
-	return 1, substr $code, 0, $end;
+	
+	my $file = f $class->{path};
+	my $x = $self->jinnee($file)->parse(my $code = $file->read);
+	
+	my ($pack) = sort {$a->{""}{from} <=> $b->{""}{from}} values %$x;
+	my ($cls) = sort {$a->{""}{from} <=> $b->{""}{from}} values %$pack;
+	
+	return 1, substr $code, $cls->{from}, $cls->{end};
 }
 
 # строка
@@ -118,24 +121,15 @@ sub _line {
 	$line
 }
 
-# возвращает код файла и позицию начала и конца метода
-sub _method_get {
-	my ($self, $method) = @_;
-	my $file = f $method->{category}{class}{path};
-	my $code = $file->read;
-	my @A = $self->jinnee($file)->parse($code);
-
-	my $first;
-	for(@A) { $first = $_, last if $_->{name} eq $method->{name} && $_->{section} eq "methods" }
-	
-	return $code, $first->{from} // 0, $first->{end} // length($code);
-}
-
 # Возвращает номер строки и тело метода
 sub method_get {
 	my ($self, $method) = @_;
+	my $category = $method->{category};
+	my ($pack, $cname, $class, $name) = @$category{qw/p c class name/};
+	my $file = f $class->{path};
+	my $x = $self->jinnee($file)->parse(my $code = $file->read);
 	
-	my ($code, $from, $end) = $self->_method_get($method);
+	my ($from, $end) = @{$x->{$pack}{$cname}{$name}{$method->{name}}}{qw/from end/};
 	
 	return _line($code, $from), substr($code, $from, $end - $from);
 }

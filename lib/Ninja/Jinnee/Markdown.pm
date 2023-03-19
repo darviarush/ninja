@@ -1,9 +1,13 @@
-package Ninja::Jinnee::Text;
-# Парсер неизвестных файлов. Просто подсвечивает классы символов
+package Ninja::Jinnee::Markdown;
+# Парсер md
 
 use common::sense;
 
 use parent 'Ninja::Role::Jinnee';
+
+
+#@category Парсинг
+
 
 sub parse {
 	my ($self, $code) = @_;
