@@ -166,7 +166,7 @@ sub lines {
 	$lines
 }
 
-# выбирает текст
+# выбиранный текст
 sub select {
 	my ($self, $from, $to) = @_;
 	$self->i->Eval("
