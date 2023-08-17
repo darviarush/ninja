@@ -1,0 +1,10 @@
+{
+	jn => ["Jinnee",
+		INC => ["src"],
+	],
+	pl => ["Ninja::Monitor::Sector",
+		INC => ["."],
+		EXC => ["./.git"],
+	],
+	default => 'jn'
+}
