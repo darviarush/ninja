@@ -129,4 +129,4 @@ $ ninja .
 
 # AUTHOR
 
-© Yaroslav O. Kosmina <darviarush@mail.ru>, 2021
+© Yaroslav O. Kosmina <dart@cpan.org>, 2021
